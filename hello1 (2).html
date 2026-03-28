@@ -1,0 +1,3232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FlowAI — Traffic Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ─── RESET & ROOT ─── */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#080b12;
+  --bg2:#0d1018;
+  --panel:#0f1320;
+  --card:#131826;
+  --border:rgba(99,102,241,0.12);
+  --border2:rgba(99,102,241,0.22);
+  --accent:#6366f1;
+  --accent-dim:rgba(99,102,241,0.08);
+  --accent2:#8b5cf6;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+  --text:#edf0f8;
+  --text2:#a0a8be;
+  --muted:#2e3655;
+  --muted2:#6b7a99;
+  --sidebar-open:240px;
+  --radius:12px;
+  --radius-sm:8px;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'Manrope',sans-serif;color:var(--text);font-size:14px;line-height:1.6;}
+
+/* ─── AMBIENT BG GLOW ─── */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse at 15% 10%,rgba(99,102,241,0.1) 0%,transparent 50%),
+    radial-gradient(ellipse at 85% 80%,rgba(139,92,246,0.08) 0%,transparent 45%),
+    radial-gradient(ellipse at 50% 50%,rgba(16,185,129,0.03) 0%,transparent 60%);
+}
+
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+#pg-login{
+  position:fixed;inset:0;z-index:500;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  transition:opacity 0.5s,transform 0.5s;
+}
+#pg-login.hide{opacity:0;transform:scale(1.02);pointer-events:none;}
+
+.login-bg{position:absolute;inset:0;overflow:hidden;}
+.login-bg-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);
+  background-size:64px 64px;
+}
+.login-bg-glow{
+  position:absolute;
+  width:700px;height:700px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(99,102,241,0.08) 0%,rgba(139,92,246,0.03) 40%,transparent 70%);
+  border-radius:50%;
+  animation:breathe 5s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.08);}}
+
+/* ══════════════════════════════════════
+   AI FLOW RECOMMENDATIONS PAGE
+══════════════════════════════════════ */
+#pg-aiflow{padding-bottom:40px;}
+.aiflow-body{padding:20px 32px;}
+
+.aiflow-hero{
+  background:linear-gradient(135deg,rgba(99,102,241,0.13) 0%,rgba(139,92,246,0.08) 50%,rgba(16,185,129,0.04) 100%);
+  border:1px solid rgba(99,102,241,0.25);border-radius:var(--radius);
+  padding:24px 28px;margin-bottom:20px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  position:relative;overflow:hidden;
+  box-shadow:0 0 40px rgba(99,102,241,0.07),inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.aiflow-hero::before{
+  content:'';position:absolute;right:-40px;top:-40px;
+  width:280px;height:280px;
+  background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 65%);
+  border-radius:50%;pointer-events:none;
+}
+.aiflow-hero::after{
+  content:'';position:absolute;left:-20px;bottom:-40px;
+  width:180px;height:180px;
+  background:radial-gradient(circle,rgba(16,185,129,0.07) 0%,transparent 65%);
+  border-radius:50%;pointer-events:none;
+}
+.aiflow-hero-left{}
+.aiflow-hero-title{font-size:1.3rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:5px;}
+.aiflow-hero-title span{background:linear-gradient(135deg,#a5b4fc,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.aiflow-hero-sub{font-size:0.75rem;color:var(--muted2);line-height:1.6;max-width:480px;}
+.aiflow-hero-stats{display:flex;gap:24px;flex-shrink:0;}
+.aiflow-hero-stat{text-align:center;}
+.aiflow-hero-stat-val{font-size:1.6rem;font-weight:800;letter-spacing:-1px;}
+.aiflow-hero-stat-val.cy{color:#a5b4fc;}
+.aiflow-hero-stat-val.gr{color:#34d399;}
+.aiflow-hero-stat-val.am{color:#fcd34d;}
+.aiflow-hero-stat-label{font-size:0.6rem;color:var(--muted2);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+
+.aiflow-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+.aiflow-card{
+  background:linear-gradient(140deg,rgba(22,27,48,0.92) 0%,rgba(12,15,26,0.97) 100%);
+  border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);
+  padding:20px;position:relative;overflow:hidden;
+  backdrop-filter:blur(8px);
+  transition:border-color 0.25s,transform 0.2s,box-shadow 0.25s;
+}
+.aiflow-card:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(0,0,0,0.35);}
+.aiflow-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:var(--radius) var(--radius) 0 0;
+  transform:scaleX(0);transform-origin:left;transition:transform 0.35s ease;
+}
+.aiflow-card:hover::after{transform:scaleX(1);}
+.aiflow-card.c-purple::after{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.aiflow-card.c-green::after{background:linear-gradient(90deg,var(--green),#34d399);}
+.aiflow-card.c-amber::after{background:linear-gradient(90deg,var(--amber),#fcd34d);}
+.aiflow-card.c-red::after{background:linear-gradient(90deg,var(--red),#fca5a5);}
+.aiflow-card.c-blue::after{background:linear-gradient(90deg,#38bdf8,#7dd3fc);}
+.aiflow-card.c-pink::after{background:linear-gradient(90deg,#f472b6,#fbcfe8);}
+.aiflow-card-icon{font-size:1.6rem;margin-bottom:12px;}
+.aiflow-card-title{font-size:0.8rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.aiflow-card-body{font-size:0.71rem;color:var(--muted2);line-height:1.75;}
+.aiflow-card-body strong{color:var(--text);}
+.aiflow-card-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  margin-top:12px;padding:3px 9px;border-radius:20px;
+  font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+}
+.aiflow-card-tag.urgent{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);}
+.aiflow-card-tag.active{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.25);}
+.aiflow-card-tag.pending{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.25);}
+.aiflow-card-tag.info{background:rgba(99,102,241,0.12);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);}
+
+.aiflow-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.aiflow-panel{
+  background:linear-gradient(135deg,rgba(20,25,42,0.9),rgba(12,15,26,0.95));
+  border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);padding:20px;
+  backdrop-filter:blur(6px);
+}
+.aiflow-panel-title{
+  font-size:0.72rem;font-weight:700;color:var(--text);
+  margin-bottom:16px;text-transform:uppercase;letter-spacing:0.5px;
+  display:flex;align-items:center;gap:8px;
+}
+.aiflow-panel-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px;}
+
+.aiflow-timeline{display:flex;flex-direction:column;gap:0;}
+.aiflow-tl-item{
+  display:flex;gap:14px;padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.aiflow-tl-item:last-child{border-bottom:none;}
+.aiflow-tl-time{font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--muted2);width:38px;flex-shrink:0;padding-top:1px;}
+.aiflow-tl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.aiflow-tl-body{flex:1;}
+.aiflow-tl-title{font-size:0.73rem;font-weight:600;color:var(--text);margin-bottom:2px;}
+.aiflow-tl-desc{font-size:0.65rem;color:var(--muted2);line-height:1.5;}
+
+.aiflow-heatrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.aiflow-heatrow:last-child{margin-bottom:0;}
+.aiflow-heat-label{font-size:0.68rem;color:var(--muted2);width:90px;flex-shrink:0;}
+.aiflow-heat-bar-wrap{flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;}
+.aiflow-heat-bar{height:100%;border-radius:4px;transition:width 1s ease;}
+.aiflow-heat-val{font-size:0.65rem;font-weight:600;color:var(--text);width:32px;text-align:right;flex-shrink:0;}
+
+.login-traffic-line{
+  position:absolute;
+  height:2px;
+  border-radius:1px;
+  animation:trafficFlow 9s linear infinite;
+  opacity:0;
+}
+@keyframes trafficFlow{
+  0%{transform:translateX(-120%);opacity:0;}
+  8%{opacity:1;}
+  88%{opacity:1;}
+  100%{transform:translateX(110vw);opacity:0;}
+}
+.login-traffic-line:nth-child(3){top:12%;width:320px;background:linear-gradient(90deg,transparent,#6366f1,transparent);box-shadow:0 0 8px rgba(99,102,241,0.5);animation-delay:0s;animation-duration:8s;}
+.login-traffic-line:nth-child(4){top:28%;width:480px;background:linear-gradient(90deg,transparent,#10b981,transparent);box-shadow:0 0 8px rgba(16,185,129,0.4);animation-delay:2.2s;animation-duration:10s;}
+.login-traffic-line:nth-child(5){top:48%;width:360px;background:linear-gradient(90deg,transparent,#8b5cf6,transparent);box-shadow:0 0 8px rgba(139,92,246,0.5);animation-delay:1s;animation-duration:7s;}
+.login-traffic-line:nth-child(6){top:65%;width:520px;background:linear-gradient(90deg,transparent,#f59e0b,transparent);box-shadow:0 0 8px rgba(245,158,11,0.4);animation-delay:4s;animation-duration:11s;}
+.login-traffic-line:nth-child(7){top:80%;width:290px;background:linear-gradient(90deg,transparent,#6366f1,transparent);box-shadow:0 0 6px rgba(99,102,241,0.4);animation-delay:5.5s;animation-duration:9s;}
+.login-traffic-line:nth-child(8){top:35%;width:410px;background:linear-gradient(90deg,transparent,#34d399,transparent);box-shadow:0 0 6px rgba(52,211,153,0.3);animation-delay:3s;animation-duration:12s;}
+
+.login-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;}
+
+.login-brand{
+  font-family:'Syne',sans-serif;
+  font-size:2.4rem;font-weight:800;
+  letter-spacing:-1px;
+  background:linear-gradient(135deg,#a5b4fc,#6366f1,#8b5cf6);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:6px;
+  animation:fadeDown 0.5s ease both;
+}
+.login-brand span{background:linear-gradient(135deg,#34d399,#10b981);-webkit-background-clip:text;background-clip:text;}
+.login-tagline{
+  font-size:0.72rem;letter-spacing:2.5px;color:var(--muted2);
+  text-transform:uppercase;margin-bottom:40px;font-weight:500;
+  animation:fadeDown 0.5s 0.08s ease both;
+}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px);}to{opacity:1;transform:translateY(0);}}
+
+.login-box{
+  width:390px;
+  background:linear-gradient(145deg,rgba(18,22,40,0.96) 0%,rgba(11,14,24,0.98) 100%);
+  border:1px solid rgba(99,102,241,0.2);
+  border-radius:var(--radius);
+  padding:36px 32px;
+  backdrop-filter:blur(24px);
+  box-shadow:0 32px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(99,102,241,0.08),0 0 60px rgba(99,102,241,0.06);
+  animation:fadeUp 0.5s 0.15s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+.login-section-label{
+  font-size:0.68rem;letter-spacing:1.5px;color:var(--accent);
+  text-transform:uppercase;font-weight:600;margin-bottom:20px;
+  display:flex;align-items:center;gap:8px;
+}
+.login-section-label::before{content:'';width:18px;height:2px;background:var(--accent);border-radius:1px;}
+
+.lf{margin-bottom:16px;}
+.lf label{display:block;font-size:0.68rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:0.3px;}
+.lf input{
+  width:100%;
+  background:linear-gradient(135deg,rgba(12,15,26,0.95),rgba(8,11,20,0.98));
+  border:1px solid rgba(99,102,241,0.15);border-radius:var(--radius-sm);
+  color:var(--text);padding:10px 13px;
+  font-family:'Manrope',sans-serif;font-size:0.83rem;
+  outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+}
+.lf input:focus{border-color:rgba(99,102,241,0.5);box-shadow:0 0 0 3px rgba(99,102,241,0.1),0 2px 12px rgba(99,102,241,0.08);}
+.lf input::placeholder{color:var(--muted2);}
+
+.login-btn{
+  width:100%;margin-top:6px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;border:none;
+  border-radius:var(--radius-sm);
+  padding:11px;
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:0.82rem;letter-spacing:0.5px;cursor:pointer;
+  transition:all 0.2s;
+  box-shadow:0 4px 16px rgba(99,102,241,0.25);
+}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(99,102,241,0.35);opacity:0.92;}
+
+.login-hint{text-align:center;font-size:0.66rem;color:var(--muted2);margin-top:14px;}
+.login-hint b{color:var(--accent);}
+.login-error{
+  background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
+  border-radius:var(--radius-sm);
+  color:var(--red);font-size:0.7rem;padding:9px 13px;
+  margin-bottom:14px;display:none;
+}
+.login-error.show{display:block;}
+
+/* ══════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════ */
+#app-shell{position:fixed;inset:0;display:flex;opacity:0;pointer-events:none;transition:opacity 0.4s;}
+#app-shell.show{opacity:1;pointer-events:all;}
+
+/* ─── SIDEBAR ─── */
+#sidebar{
+  width:var(--sidebar-open);
+  background:linear-gradient(180deg,rgba(15,19,32,0.98) 0%,rgba(10,13,22,0.98) 100%);
+  border-right:1px solid rgba(99,102,241,0.13);
+  backdrop-filter:blur(20px);
+  display:flex;flex-direction:column;
+  flex-shrink:0;position:relative;z-index:10;
+  transition:width 0.3s;overflow:hidden;
+}
+.sb-logo{
+  padding:22px 18px 18px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+}
+.sb-logo-icon{
+  width:34px;height:34px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;
+}
+.sb-logo-text{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:1.05rem;letter-spacing:-0.3px;
+  background:linear-gradient(135deg,#a5b4fc,#6366f1);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  white-space:nowrap;
+}
+.sb-logo-text span{background:linear-gradient(135deg,#34d399,#10b981);-webkit-background-clip:text;background-clip:text;}
+.sb-nav{flex:1;padding:12px 8px;overflow-y:auto;display:flex;flex-direction:column;}
+.sb-nav::-webkit-scrollbar{width:2px;}
+.sb-nav::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ─── SIDEBAR SYSTEM STATUS ─── */
+.sb-sys{
+  margin:4px 0 4px;padding:14px 12px;
+  background:rgba(99,102,241,0.04);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  flex-shrink:0;
+}
+.sb-sys-header{
+  display:flex;align-items:center;gap:7px;
+  margin-bottom:12px;padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+.sb-sys-header-icon{font-size:1rem;}
+.sb-sys-title{
+  font-size:0.68rem;font-weight:700;color:var(--text);
+  text-transform:uppercase;letter-spacing:0.5px;flex:1;
+}
+.sb-sys-badge{
+  display:flex;align-items:center;gap:4px;
+  font-size:0.58rem;font-weight:700;color:var(--green);
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);
+  border-radius:20px;padding:2px 7px;letter-spacing:0.3px;
+}
+.sb-sys-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;flex-shrink:0;}
+.sb-sys-rows{display:flex;flex-direction:column;gap:2px;}
+.sb-sys-row{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 8px;border-radius:var(--radius-sm);
+  transition:background 0.15s;
+}
+.sb-sys-row:hover{background:rgba(99,102,241,0.05);}
+.sb-sys-row-icon{font-size:1rem;width:22px;text-align:center;flex-shrink:0;}
+.sb-sys-row-body{flex:1;min-width:0;}
+.sb-sys-label{display:block;font-size:0.67rem;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-sys-val{display:block;font-size:0.6rem;color:var(--muted2);margin-top:1px;white-space:nowrap;}
+.sb-sys-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sb-sys-dot.ok{background:var(--green);box-shadow:0 0 5px rgba(16,185,129,0.45);}
+.sb-sys-dot.warn{background:var(--amber);}
+.sb-sys-dot.err{background:var(--red);}
+.sb-sys-uptime{
+  margin-top:10px;padding-top:8px;border-top:1px solid var(--border);
+  font-size:0.6rem;color:var(--muted2);font-family:'JetBrains Mono',monospace;
+}
+.sb-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 12px;cursor:pointer;
+  color:var(--muted2);font-size:0.8rem;font-weight:500;
+  white-space:nowrap;border-radius:var(--radius-sm);
+  transition:all 0.18s;margin-bottom:2px;
+}
+.sb-item:hover{background:var(--accent-dim);color:var(--text);}
+.sb-item.active{background:var(--accent-dim);color:#a5b4fc;font-weight:600;}
+.sb-item-icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+.sb-item-label{font-size:0.8rem;}
+.sb-divider{height:1px;background:var(--border);margin:6px 12px;}
+.sb-footer{padding:14px 16px;border-top:1px solid rgba(99,102,241,0.1);flex-shrink:0;background:linear-gradient(0deg,rgba(8,10,18,0.5),transparent);}
+.sb-user{display:flex;align-items:center;gap:10px;}
+.sb-avatar{
+  width:30px;height:30px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:0.72rem;font-weight:700;color:#fff;
+}
+.sb-user-info{overflow:hidden;}
+.sb-user-name{font-size:0.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-role{font-size:0.62rem;color:var(--muted2);}
+.sb-logout{
+  margin-top:8px;width:100%;background:transparent;
+  border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--muted2);padding:7px;font-family:'Syne',sans-serif;font-size:0.68rem;
+  cursor:pointer;font-weight:500;transition:all 0.2s;white-space:nowrap;
+}
+.sb-logout:hover{border-color:var(--red);color:var(--red);}
+
+/* ─── CONTENT AREA ─── */
+#content{flex:1;overflow:hidden;position:relative;background:var(--bg);}
+
+/* ─── PAGES ─── */
+.pg{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateX(18px);transition:opacity 0.3s,transform 0.3s;}
+.pg.active{opacity:1;pointer-events:all;transform:translateX(0);}
+.pg.exit{opacity:0;transform:translateX(-18px);}
+
+/* ─── PAGE HEADER ─── */
+.pg-header{
+  padding:26px 32px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
+}
+.pg-breadcrumb{font-size:0.7rem;color:var(--muted2);letter-spacing:0.5px;margin-bottom:6px;}
+.pg-breadcrumb span{color:var(--accent);}
+.pg-title{font-size:1.9rem;font-weight:800;letter-spacing:-1px;color:var(--text);font-family:'Syne',sans-serif;}
+.pg-subtitle{font-size:0.8rem;color:var(--muted2);margin-top:5px;font-weight:400;}
+.live-badge{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);
+  border-radius:20px;padding:5px 12px;font-size:0.65rem;letter-spacing:1px;color:var(--green);
+  font-weight:600;text-transform:uppercase;
+}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+
+/* ══════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════ */
+#pg-dashboard{padding-bottom:40px;}
+.dash-body{padding:24px 32px;}
+
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{
+  background:linear-gradient(135deg,rgba(25,30,50,0.9) 0%,rgba(16,20,36,0.95) 100%);
+  border:1px solid rgba(99,102,241,0.1);
+  border-radius:var(--radius);padding:20px 18px;
+  position:relative;overflow:hidden;cursor:default;
+  backdrop-filter:blur(8px);
+  transition:border-color 0.25s,transform 0.2s,box-shadow 0.25s;
+}
+.stat-card:hover{transform:translateY(-2px);}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:var(--radius) var(--radius) 0 0;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform 0.35s ease;
+}
+.stat-card.c1::after{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.stat-card.c2::after{background:linear-gradient(90deg,var(--green),#34d399);}
+.stat-card.c3::after{background:linear-gradient(90deg,var(--amber),#fcd34d);}
+.stat-card.c4::after{background:linear-gradient(90deg,var(--red),#fca5a5);}
+.stat-card:hover::after{transform:scaleX(1);}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;width:2px;height:100%;border-radius:var(--radius) 0 0 var(--radius);
+}
+.stat-card.c1::before{background:linear-gradient(180deg,var(--accent),var(--accent2));}
+.stat-card.c2::before{background:linear-gradient(180deg,var(--green),#34d399);}
+.stat-card.c3::before{background:linear-gradient(180deg,var(--amber),#fcd34d);}
+.stat-card.c4::before{background:linear-gradient(180deg,var(--red),#fca5a5);}
+.stat-card-label{font-size:0.68rem;font-weight:700;color:var(--muted2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px;}
+.stat-card-val{font-size:1.85rem;font-weight:800;line-height:1;font-family:'Syne',sans-serif;letter-spacing:-1px;}
+.stat-card.c1 .stat-card-val{color:#a5b4fc;}
+.stat-card.c2 .stat-card-val{color:#34d399;}
+.stat-card.c3 .stat-card-val{color:#fcd34d;}
+.stat-card.c4 .stat-card-val{color:#fca5a5;}
+.stat-card-sub{font-size:0.67rem;color:var(--muted2);margin-top:6px;font-weight:400;}
+.stat-bg-icon{position:absolute;right:14px;bottom:10px;font-size:2.6rem;opacity:0.06;user-select:none;}
+
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.dash-panel{
+  background:linear-gradient(135deg,rgba(20,25,42,0.9) 0%,rgba(13,16,28,0.95) 100%);
+  border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);padding:22px;
+  backdrop-filter:blur(6px);
+}
+.dash-panel-title{
+  font-size:0.75rem;font-weight:700;color:var(--text);
+  margin-bottom:18px;text-transform:uppercase;letter-spacing:0.5px;
+  display:flex;align-items:center;gap:8px;
+}
+.dash-panel-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px;}
+
+.quick-actions{display:flex;flex-direction:column;gap:8px;}
+.qa-btn{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(135deg,rgba(16,20,34,0.92),rgba(10,13,22,0.97));
+  border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius-sm);
+  padding:13px 15px;cursor:pointer;transition:all 0.22s;text-align:left;color:var(--text);
+}
+.qa-btn:hover{border-color:rgba(99,102,241,0.35);background:rgba(99,102,241,0.07);transform:translateX(3px);box-shadow:0 4px 18px rgba(99,102,241,0.1);}
+.qa-icon{font-size:1.15rem;width:28px;text-align:center;}
+.qa-title{font-size:0.82rem;font-weight:600;color:var(--text);}
+.qa-desc{font-size:0.67rem;color:var(--muted2);margin-top:1px;}
+
+.recent-list{display:flex;flex-direction:column;gap:0;}
+.recent-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border);font-size:0.75rem;
+}
+.recent-item:last-child{border-bottom:none;}
+.recent-route{color:var(--text);}
+.recent-route b{color:#a5b4fc;}
+.recent-meta{text-align:right;}
+.recent-dist{color:var(--muted2);font-size:0.68rem;}
+.recent-time{font-size:0.62rem;color:var(--muted);}
+.recent-badge{
+  display:inline-block;padding:2px 7px;font-size:0.6rem;font-weight:600;
+  border-radius:4px;margin-left:6px;
+}
+.rb-low{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.2);}
+.rb-mid{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.2);}
+.rb-high{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.2);}
+
+.hour-chart{display:flex;align-items:flex-end;gap:3px;height:76px;margin-top:8px;}
+.hbar{flex:1;border-radius:2px 2px 0 0;min-height:4px;transition:opacity 0.2s;cursor:default;}
+.hbar:hover{opacity:0.6;}
+.hour-labels{display:flex;justify-content:space-between;margin-top:5px;font-size:0.58rem;color:var(--muted2);}
+
+.sys-status{display:flex;flex-direction:column;gap:10px;}
+.sys-row{display:flex;align-items:center;gap:10px;font-size:0.73rem;}
+.sys-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sys-dot.ok{background:var(--green);}
+.sys-dot.warn{background:var(--amber);}
+.sys-dot.err{background:var(--red);}
+.sys-label{flex:1;color:var(--muted2);}
+.sys-val{color:var(--text);font-size:0.7rem;font-weight:500;}
+
+/* ══════════════════════════════════════
+   ANALYZER
+══════════════════════════════════════ */
+#pg-analyzer{padding-bottom:0;overflow:hidden;display:flex;flex-direction:column;}
+.analyzer-body{padding:14px 20px 14px;flex:1;min-height:0;display:flex;flex-direction:column;}
+.analyzer-layout{display:grid;grid-template-columns:300px 1fr;gap:14px;flex:1;min-height:0;overflow:hidden;}
+
+.ctrl-panel{
+  background:linear-gradient(160deg,rgba(18,23,40,0.95) 0%,rgba(11,14,24,0.97) 100%);
+  border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);
+  padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:0;
+  backdrop-filter:blur(10px);
+}
+.ctrl-panel::-webkit-scrollbar{width:3px;}
+.ctrl-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.ctrl-panel-title{
+  font-size:0.72rem;font-weight:700;color:var(--text);
+  margin-bottom:18px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:0.5px;
+}
+.ctrl-panel-title::before{content:'';width:3px;height:12px;background:var(--accent);border-radius:2px;}
+
+.cf{margin-bottom:14px;}
+.cf label{display:block;font-size:0.68rem;font-weight:600;color:var(--muted2);margin-bottom:6px;}
+.cf select{
+  width:100%;
+  background:linear-gradient(135deg,rgba(14,18,30,0.95),rgba(10,13,22,0.98));
+  border:1px solid rgba(99,102,241,0.15);border-radius:var(--radius-sm);
+  color:var(--text);padding:9px 11px;font-family:'Manrope',sans-serif;font-size:0.78rem;
+  outline:none;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7a99' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.cf select:focus{border-color:var(--accent);outline:none;}
+
+/* ─── CUSTOM SELECT DROPDOWN ─── */
+.custom-select-wrap{position:relative;width:100%;}
+.custom-select-trigger{
+  width:100%;
+  background:linear-gradient(135deg,rgba(14,18,30,0.95),rgba(10,13,22,0.98));
+  border:1px solid rgba(99,102,241,0.15);border-radius:var(--radius-sm);
+  color:var(--text);padding:9px 32px 9px 11px;
+  font-family:'Manrope',sans-serif;font-size:0.78rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  user-select:none;
+}
+.custom-select-trigger:hover{border-color:rgba(99,102,241,0.35);}
+.custom-select-wrap.open .custom-select-trigger{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(99,102,241,0.12);
+}
+.custom-select-val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted2);}
+.custom-select-val.selected{color:var(--text);}
+.custom-select-arrow{flex-shrink:0;transition:transform 0.25s;margin-left:6px;}
+.custom-select-wrap.open .custom-select-arrow{transform:rotate(180deg);}
+.custom-select-dropdown{
+  position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:999;
+  background:linear-gradient(160deg,rgba(18,22,40,0.99),rgba(10,13,22,0.99));
+  border:1px solid rgba(99,102,241,0.25);border-radius:var(--radius-sm);
+  box-shadow:0 12px 40px rgba(0,0,0,0.6),0 0 0 1px rgba(99,102,241,0.08);
+  backdrop-filter:blur(20px);
+  max-height:240px;overflow-y:auto;
+  display:none;
+}
+.custom-select-dropdown::-webkit-scrollbar{width:4px;}
+.custom-select-dropdown::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.3);border-radius:2px;}
+.custom-select-wrap.open .custom-select-dropdown{display:block;animation:dropDown 0.18s ease;}
+@keyframes dropDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.csd-option{
+  padding:9px 13px;font-size:0.78rem;color:var(--text2);cursor:pointer;
+  transition:background 0.15s,color 0.15s;
+  border-bottom:1px solid rgba(99,102,241,0.06);
+  display:flex;align-items:center;gap:8px;
+}
+.csd-option:last-child{border-bottom:none;}
+.csd-option:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.csd-option.active{background:rgba(99,102,241,0.15);color:#a5b4fc;font-weight:600;}
+.csd-option.placeholder{color:var(--muted2);font-style:italic;}
+.cf-range{width:100%;accent-color:var(--accent);cursor:pointer;}
+.cf-range-labels{display:flex;justify-content:space-between;font-size:0.6rem;color:var(--muted2);margin-top:4px;}
+
+.run-btn{
+  width:100%;margin-top:4px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;
+  font-family:'Syne',sans-serif;font-weight:700;
+  font-size:0.78rem;letter-spacing:0.3px;cursor:pointer;
+  transition:all 0.2s;box-shadow:0 4px 14px rgba(99,102,241,0.25);
+}
+.run-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(99,102,241,0.35);opacity:0.92;}
+.run-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
+
+.analyzer-right{display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto;}
+.analyzer-right::-webkit-scrollbar{width:3px;}
+.analyzer-right::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;flex-shrink:0;}
+.mc{background:linear-gradient(135deg,rgba(22,27,46,0.92) 0%,rgba(13,16,28,0.96) 100%);border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);padding:15px 13px;position:relative;overflow:hidden;backdrop-filter:blur(6px);}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--radius) var(--radius) 0 0;}
+.mc.cy::before{background:var(--accent);}
+.mc.gr::before{background:var(--green);}
+.mc.am::before{background:var(--amber);}
+.mc.rd::before{background:var(--red);}
+.mc-label{font-size:0.62rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;}
+.mc-val{font-size:1.38rem;font-weight:700;line-height:1;letter-spacing:-0.5px;}
+.mc.cy .mc-val{color:#a5b4fc;}
+.mc.gr .mc-val{color:#34d399;}
+.mc.am .mc-val{color:#fcd34d;}
+.mc.rd .mc-val{color:#fca5a5;}
+.mc-unit{font-size:0.6rem;color:var(--muted2);margin-top:4px;}
+
+.map-box{background:linear-gradient(135deg,rgba(16,20,34,0.95),rgba(10,13,22,0.98));border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
+.map-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 15px;border-bottom:1px solid rgba(99,102,241,0.1);
+  background:linear-gradient(90deg,rgba(14,18,32,0.98),rgba(10,13,22,0.98));
+}
+.map-topbar-title{font-size:0.68rem;font-weight:600;color:var(--text2);}
+.map-legend{display:flex;gap:12px;}
+.ml-item{display:flex;align-items:center;gap:5px;font-size:0.62rem;color:var(--muted2);}
+.ml-dot{width:8px;height:8px;border-radius:50%;}
+#mapLeaflet{flex:1;min-height:280px;width:100%;background:#0d0f17;}
+.leaflet-container{background:#0d0f17 !important;font-family:'Syne',sans-serif;}
+.leaflet-tile-pane{filter:brightness(0.88) saturate(0.7);}
+.leaflet-tooltip-dark{
+  background:rgba(24,28,40,0.97) !important;border:1px solid var(--border2) !important;
+  color:#a5b4fc !important;font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;padding:3px 8px;border-radius:4px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.3);
+}
+.leaflet-control-zoom a{background:var(--panel) !important;border-color:var(--border) !important;color:#a5b4fc !important;border-radius:4px !important;}
+.leaflet-control-attribution{background:rgba(15,17,23,0.8) !important;color:var(--muted2) !important;font-size:0.5rem;}
+.leaflet-control-attribution a{color:var(--muted2) !important;}
+.osrm-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);
+  border-radius:4px;color:var(--green);font-size:0.6rem;font-weight:600;
+  padding:2px 8px;
+}
+
+.route-box{
+  background:linear-gradient(140deg,rgba(20,24,42,0.92),rgba(12,15,26,0.97));
+  border:1px solid rgba(99,102,241,0.12);border-radius:var(--radius);
+  border-left:2px solid var(--accent);padding:16px 18px;
+  backdrop-filter:blur(6px);
+}
+.route-box-label{font-size:0.66rem;font-weight:700;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:11px;}
+.route-nodes{display:flex;flex-wrap:wrap;align-items:center;gap:0;}
+.rn{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:4px;
+  color:var(--text);padding:4px 11px;font-size:0.71rem;font-weight:500;transition:border-color 0.2s;
+}
+.rn.src{border-color:var(--accent);color:#a5b4fc;background:rgba(99,102,241,0.08);}
+.rn.dst{border-color:var(--amber);color:#fcd34d;background:rgba(245,158,11,0.08);}
+.rn.mid{border-color:rgba(16,185,129,0.4);color:#34d399;}
+.rn-arrow{color:var(--muted2);padding:0 4px;font-size:0.7rem;}
+
+.ai-box{background:transparent;border:none;padding:0;}
+.ai-box-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ai-chip{
+  background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.2);
+  border-radius:4px;color:#a5b4fc;font-size:0.6rem;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;padding:3px 9px;
+}
+.ai-box-title{font-size:0.78rem;font-weight:700;color:var(--text);}
+.ai-recs-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.ai-rec{background:linear-gradient(135deg,rgba(18,22,38,0.9),rgba(12,15,26,0.95));border:1px solid rgba(99,102,241,0.1);border-radius:var(--radius-sm);padding:10px;}
+.ai-rec-icon{font-size:1rem;margin-bottom:5px;}
+.ai-rec-title{font-size:0.68rem;font-weight:700;color:var(--text);margin-bottom:3px;}
+.ai-rec-body{font-size:0.62rem;color:var(--muted2);line-height:1.6;}
+
+.ctrl-divider{height:1px;background:var(--border);margin:12px 0;flex-shrink:0;}
+.ctrl-results-label{
+  font-size:0.62rem;font-weight:700;color:var(--green);
+  letter-spacing:1px;text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-shrink:0;
+}
+.ctrl-results-label::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);}
+
+.placeholder-map{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:1;min-height:280px;gap:10px;color:var(--muted2);font-size:0.75rem;
+}
+.placeholder-map .ph{font-size:2.8rem;opacity:0.15;margin-bottom:6px;}
+
+/* ══════════════════════════════════════
+   HOW IT WORKS
+══════════════════════════════════════ */
+#pg-howitworks{padding-bottom:60px;}
+.hiw-body{padding:24px 32px;}
+.hiw-intro{max-width:660px;margin-bottom:36px;font-size:0.86rem;line-height:1.85;color:var(--muted2);font-weight:400;}
+.hiw-steps{display:flex;flex-direction:column;gap:0;}
+.hiw-step{display:grid;grid-template-columns:64px 1fr;gap:0;border-left:1px solid var(--border);padding-left:0;margin-left:32px;position:relative;}
+.hiw-step::before{content:'';position:absolute;left:-5px;top:26px;width:9px;height:9px;border-radius:50%;background:var(--border2);border:2px solid var(--border);transition:background 0.3s;}
+.hiw-step:hover::before{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(99,102,241,0.4);}
+.hiw-step-num{font-size:2.2rem;font-weight:800;color:var(--border2);padding:14px 0 22px 18px;line-height:1;transition:color 0.3s;letter-spacing:-1px;}
+.hiw-step:hover .hiw-step-num{color:rgba(99,102,241,0.12);}
+.hiw-step-content{padding:14px 20px 28px 18px;}
+.hiw-step-icon{font-size:1.6rem;margin-bottom:9px;}
+.hiw-step-title{font-size:0.92rem;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-0.2px;}
+.hiw-step-desc{font-size:0.8rem;color:var(--muted2);line-height:1.8;max-width:560px;margin-bottom:10px;}
+.hiw-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.hiw-tag{background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.14);border-radius:4px;font-size:0.62rem;font-weight:600;padding:3px 9px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.3px;}
+
+.hiw-algo{
+  background:linear-gradient(135deg,rgba(18,22,40,0.92),rgba(11,14,24,0.97));
+  border:1px solid rgba(99,102,241,0.14);border-radius:var(--radius);
+  border-left:2px solid var(--accent);padding:24px 28px;margin-top:32px;
+  display:grid;grid-template-columns:1fr 1fr;gap:28px;
+  backdrop-filter:blur(6px);
+}
+.algo-title{font-size:0.78rem;font-weight:700;color:#a5b4fc;margin-bottom:12px;letter-spacing:0.2px;}
+.algo-desc{font-size:0.78rem;color:var(--muted2);line-height:1.8;}
+.code-block{
+  background:rgba(8,10,18,0.9);border:1px solid rgba(99,102,241,0.1);
+  border-radius:var(--radius-sm);padding:14px;
+  font-family:'JetBrains Mono',monospace;font-size:0.68rem;line-height:1.7;color:var(--muted2);overflow-x:auto;
+}
+.code-block .kw{color:#a5b4fc;}
+.code-block .fn{color:#34d399;}
+.code-block .cm{color:var(--muted);}
+.code-block .nm{color:#fcd34d;}
+
+/* ── BUTTONS ── */
+.pg-nav-btns{display:flex;align-items:center;gap:8px;}
+.back-btn{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--muted2);padding:7px 14px;font-family:'Syne',sans-serif;font-size:0.73rem;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.back-btn:hover{border-color:var(--accent);color:#a5b4fc;background:var(--accent-dim);}
+.back-btn .arr{transition:transform 0.2s;}
+.back-btn:hover .arr{transform:translateX(-2px);}
+.logout-btn{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-sm);
+  color:rgba(239,68,68,0.6);padding:7px 14px;font-family:'Syne',sans-serif;font-size:0.73rem;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.logout-btn:hover{border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.06);}
+
+/* ─── LOADER ─── */
+#loader{position:fixed;inset:0;z-index:9998;background:rgba(15,17,23,0.82);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+#loader.show{display:flex;}
+.spin{width:40px;height:40px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.load-text{font-size:0.68rem;font-weight:600;letter-spacing:1px;color:var(--muted2);text-transform:uppercase;}
+
+/* ─── TOAST ─── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9997;
+  background:var(--panel);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  border-left:3px solid var(--green);padding:11px 18px;font-size:0.74rem;font-weight:500;
+  transform:translateY(50px);opacity:0;transition:all 0.3s;max-width:300px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.3);
+}
+#toast.show{transform:translateY(0);opacity:1;}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ── AUTH TABS ── */
+.auth-tabs{display:flex;margin-bottom:22px;border-bottom:1px solid var(--border2);}
+.auth-tab{
+  flex:1;padding:9px;text-align:center;
+  font-size:0.73rem;font-weight:700;letter-spacing:0.5px;
+  color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:all 0.2s;
+}
+.auth-tab.active{color:#a5b4fc;border-bottom-color:var(--accent);}
+.auth-tab:hover:not(.active){color:var(--text);}
+.auth-form{display:none;}
+.auth-form.active{display:block;}
+.auth-success{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-sm);color:var(--green);font-size:0.7rem;padding:9px 13px;margin-bottom:12px;display:none;}
+.auth-success.show{display:block;}
+.pw-row{display:flex;gap:10px;}
+.pw-row .lf{flex:1;}
+.pw-strength{margin-top:5px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.pw-strength-bar{height:100%;width:0%;border-radius:2px;transition:width 0.3s,background 0.3s;}
+.pw-hint{font-size:0.6rem;color:var(--muted2);margin-top:3px;}
+
+/* ══════════════════════════════════════
+   LIVE TOPBAR
+══════════════════════════════════════ */
+#live-topbar{
+  position:fixed;top:0;left:0;right:0;height:36px;z-index:200;
+  background:linear-gradient(90deg,rgba(10,12,22,0.97) 0%,rgba(12,15,26,0.97) 100%);
+  border-bottom:1px solid rgba(99,102,241,0.12);
+  backdrop-filter:blur(20px);
+  display:none;align-items:center;justify-content:space-between;padding:0 18px;
+  font-family:'JetBrains Mono',monospace;font-size:0.62rem;
+  box-shadow:0 1px 20px rgba(99,102,241,0.06);
+}
+#live-topbar.show{display:flex;}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.topbar-brand{font-weight:700;font-family:'Syne',sans-serif;font-size:0.72rem;letter-spacing:-0.2px;background:linear-gradient(135deg,#a5b4fc,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.topbar-brand span{background:linear-gradient(135deg,#34d399,#10b981);-webkit-background-clip:text;background-clip:text;}
+.topbar-clock{color:var(--text);letter-spacing:1px;}
+.topbar-date{color:var(--muted2);}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.topbar-sensor{font-size:0.6rem;color:var(--muted2);display:flex;align-items:center;gap:5px;}
+.topbar-sensor-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s infinite;}
+.topbar-notif-btn{
+  background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted2);
+  padding:3px 10px;cursor:pointer;font-size:0.6rem;font-family:'JetBrains Mono',monospace;
+  font-weight:500;transition:all 0.2s;position:relative;
+}
+.topbar-notif-btn:hover{border-color:var(--accent);color:#a5b4fc;}
+.notif-count{
+  position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;
+  width:14px;height:14px;border-radius:50%;
+  font-size:0.5rem;display:flex;align-items:center;justify-content:center;font-weight:700;
+}
+#app-shell.show{padding-top:36px;}
+
+/* ══════════════════════════════════════
+   NOTIFICATIONS PANEL
+══════════════════════════════════════ */
+#notif-panel{
+  position:fixed;top:36px;right:0;bottom:0;width:310px;z-index:150;
+  background:var(--panel);border-left:1px solid var(--border);
+  transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  display:flex;flex-direction:column;
+}
+#notif-panel.open{transform:translateX(0);}
+.notif-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.notif-title{font-size:0.72rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:0.3px;}
+.notif-title::before{content:'';width:3px;height:12px;background:var(--accent);border-radius:2px;}
+.notif-close{background:none;border:none;color:var(--muted2);cursor:pointer;font-size:1rem;transition:color 0.2s;line-height:1;}
+.notif-close:hover{color:var(--red);}
+.notif-list{flex:1;overflow-y:auto;padding:10px;}
+.notif-item{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:11px 13px;margin-bottom:7px;border-left:3px solid transparent;
+  animation:slideInRight 0.3s ease both;
+}
+@keyframes slideInRight{from{opacity:0;transform:translateX(14px);}to{opacity:1;transform:translateX(0);}}
+.notif-item.alert{border-left-color:var(--red);}
+.notif-item.warn{border-left-color:var(--amber);}
+.notif-item.info{border-left-color:var(--accent);}
+.notif-item.ok{border-left-color:var(--green);}
+.notif-item-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.notif-item-type{font-size:0.58rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+.notif-item.alert .notif-item-type{color:var(--red);}
+.notif-item.warn .notif-item-type{color:var(--amber);}
+.notif-item.info .notif-item-type{color:#a5b4fc;}
+.notif-item.ok .notif-item-type{color:var(--green);}
+.notif-item-time{font-size:0.58rem;color:var(--muted2);font-family:'JetBrains Mono',monospace;}
+.notif-item-msg{font-size:0.71rem;color:var(--text);line-height:1.5;font-weight:400;}
+.notif-item-loc{font-size:0.63rem;color:var(--muted2);margin-top:3px;}
+.notif-empty{text-align:center;color:var(--muted2);font-size:0.72rem;padding:36px 16px;line-height:1.7;}
+.notif-footer{padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.notif-clear{background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted2);padding:5px 11px;cursor:pointer;font-size:0.62rem;font-weight:600;transition:all 0.2s;}
+.notif-clear:hover{border-color:var(--red);color:var(--red);}
+.notif-live-dot{display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--green);font-family:'JetBrains Mono',monospace;}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px){
+  .stat-row{grid-template-columns:repeat(2,1fr);}
+  .metrics-grid{grid-template-columns:repeat(2,1fr);}
+  .analyzer-layout{grid-template-columns:1fr;}
+  .ai-recs-grid{grid-template-columns:1fr 1fr;}
+  .hiw-algo{grid-template-columns:1fr;}
+}
+@media(max-width:768px){
+  .sb-logo-text,.sb-item-label,.sb-user-info,.sb-logout,.sb-sys{display:none;}
+  .sb-item{justify-content:center;padding:12px;}
+  .sb-logo{justify-content:center;padding:18px 0;}
+  #sidebar{width:56px;}
+  .pg-header{padding:18px 18px 0;}
+  .dash-body,.analyzer-body,.hiw-body{padding:14px;}
+  .dash-grid{grid-template-columns:1fr;}
+}
+
+/* Time period label */
+#timePeriodLabel{
+  font-size:0.68rem;font-weight:600;padding:4px 12px;
+  border-radius:4px;display:inline-flex;align-items:center;gap:6px;
+  font-family:'Syne',sans-serif;
+}
+
+/* ══════════════════════════════════════
+   SYSTEM STATUS MODULE
+══════════════════════════════════════ */
+.sys-module{
+  margin-top:14px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
+}
+.sys-module-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  background:rgba(99,102,241,0.04);
+}
+.sys-module-title{
+  display:flex;align-items:center;gap:10px;
+  font-size:0.8rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.5px;
+}
+.sys-module-icon{font-size:1rem;}
+.sys-module-badge{
+  font-size:0.6rem;font-weight:700;letter-spacing:1px;
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);
+  border-radius:20px;color:var(--green);padding:3px 10px;
+  text-transform:uppercase;
+}
+.sys-module-uptime{font-size:0.65rem;color:var(--muted2);font-family:'JetBrains Mono',monospace;}
+.sys-module-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  gap:0;
+}
+.sys-module-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;padding:20px 14px;text-align:center;
+  border-right:1px solid var(--border);position:relative;
+  transition:background 0.2s;
+}
+.sys-module-card:last-child{border-right:none;}
+.sys-module-card:hover{background:rgba(99,102,241,0.04);}
+.smc-icon{font-size:1.5rem;opacity:0.75;}
+.smc-body{display:flex;flex-direction:column;gap:3px;}
+.smc-label{font-size:0.65rem;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;}
+.smc-val{font-size:0.72rem;color:var(--text);font-weight:500;}
+.smc-dot{
+  width:7px;height:7px;border-radius:50%;
+  position:absolute;top:12px;right:12px;
+}
+.smc-dot.ok{background:var(--green);box-shadow:0 0 6px rgba(16,185,129,0.5);}
+.smc-dot.warn{background:var(--amber);}
+.smc-dot.err{background:var(--red);}
+/* ─── TRAFFIC LEVEL PILLS ─── */
+.traffic-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:20px;
+  font-size:0.62rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+}
+.tp-low{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.25);}
+.tp-mid{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.25);}
+.tp-high{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);}
+
+/* ─── ROUTE SUMMARY 2×2 GRID ─── */
+.route-summary-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  margin-bottom:12px;
+}
+.rsm-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 12px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.rsm-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:var(--radius) var(--radius) 0 0;
+}
+.rsm-card.rc1::before{background:var(--accent);}
+.rsm-card.rc2::before{background:var(--green);}
+.rsm-card.rc3::before{background:var(--amber);}
+.rsm-card.rc4::before{background:var(--red);}
+.rsm-label{font-size:0.6rem;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.rsm-val{font-size:1.2rem;font-weight:700;line-height:1;letter-spacing:-0.5px;}
+.rsm-card.rc1 .rsm-val{color:#a5b4fc;}
+.rsm-card.rc2 .rsm-val{color:#34d399;}
+.rsm-card.rc3 .rsm-val{color:#fcd34d;}
+.rsm-card.rc4 .rsm-val{color:#fca5a5;}
+
+/* ─── ROUTE CARD RECOMMENDED BADGE ─── */
+.route-rec-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);
+  color:var(--green);border-radius:4px;padding:3px 9px;margin-bottom:8px;
+}
+.route-alt-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.25);
+  color:var(--amber);border-radius:4px;padding:3px 9px;margin-bottom:8px;
+}
+
+/* ─── SIGNAL TIMING TABLE ─── */
+.signal-section{
+  margin-top:12px;padding:14px 14px 10px;
+  background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.12);
+  border-radius:var(--radius-sm);
+}
+.signal-section-title{
+  font-size:0.65rem;font-weight:700;color:var(--accent);
+  letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.signal-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:0.72rem;
+}
+.signal-row:last-child{border-bottom:none;}
+.signal-loc{color:var(--text2);display:flex;align-items:center;gap:6px;}
+.signal-right{display:flex;align-items:center;gap:8px;}
+.signal-status{font-size:0.62rem;font-weight:700;text-transform:uppercase;}
+.signal-status.green{color:#34d399;}
+.signal-status.yellow{color:#fcd34d;}
+.signal-status.red{color:#fca5a5;}
+.signal-wait{
+  font-size:0.65rem;font-weight:600;color:var(--text);
+  background:rgba(255,255,255,0.05);padding:2px 7px;border-radius:4px;
+}
+
+/* ─── STEP-BY-STEP ANALYSIS ANIMATION ─── */
+.analyze-steps-overlay{
+  display:none;
+  background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:28px 24px;text-align:center;margin-bottom:12px;
+}
+.analyze-steps-overlay.active{display:block;animation:fadeUp 0.3s ease;}
+.analyze-spinner{
+  width:36px;height:36px;margin:0 auto 16px;
+  border:3px solid rgba(99,102,241,0.15);
+  border-top-color:var(--accent);
+  border-radius:50%;animation:spin 0.9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.analyze-step-text{
+  font-size:0.78rem;font-weight:600;color:var(--accent);
+  min-height:22px;transition:opacity 0.2s;
+}
+.analyze-step-sub{font-size:0.66rem;color:var(--muted2);margin-top:5px;}
+.analyze-progress{
+  width:100%;height:3px;background:var(--border);border-radius:2px;
+  margin-top:16px;overflow:hidden;
+}
+.analyze-progress-bar{
+  height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border-radius:2px;width:0%;transition:width 0.5s ease;
+}
+
+/* ─── AI INSIGHT SUMMARY BLOCK ─── */
+.ai-insight-block{
+  background:linear-gradient(135deg,rgba(99,102,241,0.07) 0%,rgba(139,92,246,0.04) 100%);
+  border:1px solid rgba(99,102,241,0.18);border-left:4px solid var(--accent);
+  border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;
+}
+.ai-insight-block-title{
+  display:flex;align-items:center;gap:8px;
+  font-size:0.72rem;font-weight:700;color:var(--accent);
+  text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;
+}
+.ai-insight-block-body{
+  font-size:0.73rem;color:var(--text2);line-height:1.7;
+}
+.ai-insight-block-body strong{color:var(--text);}
+
+
+/* ══════════════════════════════════════
+   VISUAL & INTERACTIVE UPGRADES
+   (no layout/size changes)
+══════════════════════════════════════ */
+
+/* ─── BUTTON GLOW + RIPPLE CONTAINER ─── */
+.run-btn{
+  position:relative;overflow:hidden;
+  box-shadow:0 4px 20px rgba(99,102,241,0.3),0 0 0 1px rgba(99,102,241,0.12);
+  transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.run-btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(99,102,241,0.5),0 0 20px rgba(139,92,246,0.25);
+}
+.run-btn:active{transform:translateY(0);}
+.login-btn{position:relative;overflow:hidden;}
+.qa-btn{position:relative;overflow:hidden;}
+.back-btn{position:relative;overflow:hidden;}
+
+/* ─── RIPPLE ─── */
+.ripple{
+  position:absolute;border-radius:50%;
+  background:rgba(255,255,255,0.2);
+  transform:scale(0);animation:rippleAnim 0.55s linear;pointer-events:none;
+}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0;}}
+
+/* ─── STAT CARD COLORED HOVER GLOWS ─── */
+.stat-card{transition:border-color 0.25s,transform 0.2s,box-shadow 0.3s;}
+.stat-card.c1:hover{box-shadow:0 12px 32px rgba(99,102,241,0.2),0 0 0 1px rgba(99,102,241,0.15);}
+.stat-card.c2:hover{box-shadow:0 12px 32px rgba(16,185,129,0.2),0 0 0 1px rgba(16,185,129,0.15);}
+.stat-card.c3:hover{box-shadow:0 12px 32px rgba(245,158,11,0.2),0 0 0 1px rgba(245,158,11,0.15);}
+.stat-card.c4:hover{box-shadow:0 12px 32px rgba(239,68,68,0.2),0 0 0 1px rgba(239,68,68,0.15);}
+
+/* ─── STAT CARD VALUES — Syne font only, same size ─── */
+.stat-card-val{font-family:'Syne',sans-serif;}
+.stat-card-label{font-family:'Manrope',sans-serif;letter-spacing:0.6px;}
+
+/* ─── METRIC CARDS GLOW ─── */
+.mc{transition:box-shadow 0.25s,transform 0.2s;}
+.mc:hover{transform:translateY(-2px);}
+.mc-val{font-family:'Syne',sans-serif;}
+.mc.cy:hover{box-shadow:0 6px 20px rgba(99,102,241,0.18);}
+.mc.gr:hover{box-shadow:0 6px 20px rgba(16,185,129,0.18);}
+.mc.am:hover{box-shadow:0 6px 20px rgba(245,158,11,0.18);}
+.mc.rd:hover{box-shadow:0 6px 20px rgba(239,68,68,0.18);}
+
+/* ─── SIDEBAR — Syne brand, no size change ─── */
+.sb-logo-text{font-family:'Syne',sans-serif;letter-spacing:-0.3px;}
+.sb-logo-icon{font-family:'Syne',sans-serif;}
+.sb-item{transition:all 0.18s cubic-bezier(0.4,0,0.2,1);}
+.sb-item:hover{transform:translateX(3px);}
+.sb-item.active{transform:translateX(3px);}
+.sb-item-label{font-family:'Manrope',sans-serif;}
+
+/* ─── SIDEBAR GRADIENT ACTIVE STATE ─── */
+.sb-item.active{
+  background:linear-gradient(90deg,rgba(99,102,241,0.15),rgba(99,102,241,0.05));
+  border-left:2px solid var(--accent);
+}
+
+/* ─── PAGE TITLES — Syne only, same sizes ─── */
+.pg-title{font-family:'Syne',sans-serif;letter-spacing:-0.5px;}
+.pg-subtitle{font-family:'Manrope',sans-serif;}
+.pg-breadcrumb{font-family:'Manrope',sans-serif;}
+.dash-panel-title{font-family:'Syne',sans-serif;letter-spacing:0.3px;}
+
+/* ─── LOGIN — Syne brand, original sizes ─── */
+.login-brand{font-family:'Syne',sans-serif;letter-spacing:-1px;}
+.lf label{font-family:'Manrope',sans-serif;font-weight:700;letter-spacing:0.3px;}
+.lf input{font-family:'Manrope',sans-serif;}
+
+/* ─── LOGIN BOX GLASSMORPHISM GLOW ─── */
+.login-box{
+  box-shadow:0 24px 64px rgba(0,0,0,0.45),0 0 0 1px rgba(99,102,241,0.1),0 0 60px rgba(99,102,241,0.06);
+}
+
+/* ─── CARD SHIMMER ON HOVER ─── */
+.aiflow-card{position:relative;overflow:hidden;}
+.aiflow-card::before{
+  content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;z-index:1;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.045),transparent);
+  transition:left 0.5s ease;pointer-events:none;
+}
+.aiflow-card:hover::before{left:150%;}
+
+/* ─── AIFLOW FONTS — Syne titles, original sizes ─── */
+.aiflow-hero-title{font-family:'Syne',sans-serif;letter-spacing:-0.5px;}
+.aiflow-hero-stat-val{font-family:'Syne',sans-serif;}
+.aiflow-card-title{font-family:'Syne',sans-serif;letter-spacing:-0.2px;}
+.aiflow-panel-title{font-family:'Syne',sans-serif;letter-spacing:0.3px;}
+.aiflow-tl-title{font-family:'Syne',sans-serif;}
+
+/* ─── OTHER TITLES ─── */
+.route-box-label{font-family:'Syne',sans-serif;letter-spacing:0.5px;}
+.ctrl-panel-title{font-family:'Syne',sans-serif;letter-spacing:0.3px;}
+.ai-box-title{font-family:'Syne',sans-serif;}
+.hiw-step-title{font-family:'Syne',sans-serif;}
+.hiw-step-num{font-family:'Syne',sans-serif;}
+.topbar-brand{font-family:'Syne',sans-serif;letter-spacing:-0.2px;}
+.notif-title{font-family:'Syne',sans-serif;}
+.qa-title{font-family:'Syne',sans-serif;}
+.recent-route b{font-family:'Syne',sans-serif;}
+.sb-sys-title{font-family:'Syne',sans-serif;letter-spacing:0.3px;}
+.rsm-val{font-family:'Syne',sans-serif;}
+.rsm-label{font-family:'Manrope',sans-serif;letter-spacing:0.5px;}
+
+/* ─── DASH PANEL CARD GLASS HOVER ─── */
+.dash-panel{transition:border-color 0.25s,box-shadow 0.25s;}
+.dash-panel:hover{
+  border-color:rgba(99,102,241,0.2);
+  box-shadow:0 8px 32px rgba(0,0,0,0.2),0 0 0 1px rgba(99,102,241,0.08);
+}
+
+/* ─── ROUTE BOX HOVER ─── */
+.route-box{transition:border-color 0.2s,box-shadow 0.2s;}
+.route-box:hover{box-shadow:0 4px 20px rgba(99,102,241,0.12);}
+
+/* ─── AI REC CARD HOVER ─── */
+.ai-rec{transition:border-color 0.2s,transform 0.2s,box-shadow 0.2s;}
+.ai-rec:hover{
+  transform:translateY(-2px);
+  border-color:rgba(99,102,241,0.25);
+  box-shadow:0 6px 20px rgba(99,102,241,0.12);
+}
+
+/* ─── LIVE DOT PULSE RING ─── */
+.live-dot{animation:livePulse 2s infinite,blink 1.5s infinite;}
+@keyframes livePulse{
+  0%{box-shadow:0 0 0 0 rgba(16,185,129,0.5);}
+  70%{box-shadow:0 0 0 7px rgba(16,185,129,0);}
+  100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+}
+
+/* ─── SYS DOT GLOW BREATHE ─── */
+.sb-sys-dot.ok{animation:sysGlow 2.5s ease-in-out infinite;}
+@keyframes sysGlow{
+  0%,100%{box-shadow:0 0 3px rgba(16,185,129,0.4);}
+  50%{box-shadow:0 0 10px rgba(16,185,129,0.85);}
+}
+
+/* ─── FOCUS GLOW INPUTS & SELECTS ─── */
+.cf select:focus{box-shadow:0 0 0 3px rgba(99,102,241,0.15),0 4px 12px rgba(99,102,241,0.08);}
+.lf input:focus{box-shadow:0 0 0 3px rgba(99,102,241,0.14),0 4px 12px rgba(99,102,241,0.07);}
+
+/* ─── QA BTN HOVER ─── */
+.qa-btn:hover{
+  box-shadow:0 4px 16px rgba(99,102,241,0.14);
+  transform:translateX(4px);
+}
+
+/* ─── GRADIENT SCROLLBAR ─── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:3px;}
+
+/* ─── TOAST ─── */
+#toast{font-family:'Manrope',sans-serif;font-weight:600;}
+
+/* ─── SIGNAL SECTION HOVER ─── */
+.signal-row{transition:background 0.15s;}
+.signal-row:hover{background:rgba(99,102,241,0.04);border-radius:4px;}
+
+/* ─── HOW IT WORKS STEP HOVER ─── */
+.hiw-step{transition:padding-left 0.2s;}
+.hiw-step:hover{padding-left:4px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════ LOADER ═══════ -->
+<div id="loader">
+  <div class="spin"></div>
+  <div class="load-text" id="loadText">Processing...</div>
+</div>
+
+<!-- ═══════ TOAST ═══════ -->
+<div id="toast"></div>
+
+<!-- ═══════ LIVE TOP BAR ═══════ -->
+<div id="live-topbar">
+  <div class="topbar-left">
+    <div class="topbar-brand">Flow<span>AI</span></div>
+    <div class="topbar-clock" id="topbarClock">--:--:--</div>
+    <div class="topbar-date" id="topbarDate">--- -- ----</div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-sensor"><div class="topbar-sensor-dot"></div><span id="sessionRouteCount">0 ROUTES ANALYZED</span></div>
+    <button class="topbar-notif-btn" onclick="toggleNotifPanel()">
+      🔔 ALERTS <span class="notif-count" id="notifCount">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════ NOTIFICATIONS PANEL ═══════ -->
+<div id="notif-panel">
+  <div class="notif-header">
+    <div class="notif-title">Live Alerts</div>
+    <button class="notif-close" onclick="toggleNotifPanel()">✕</button>
+  </div>
+  <div class="notif-list" id="notifList">
+    <div class="notif-empty">No alerts yet. System monitoring active...</div>
+  </div>
+  <div class="notif-footer">
+    <div class="notif-live-dot"><div class="topbar-sensor-dot"></div> LIVE FEED</div>
+    <button class="notif-clear" onclick="clearNotifs()">CLEAR ALL</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     LOGIN / SIGNUP PAGE
+══════════════════════════════════════════ -->
+<div id="pg-login">
+  <div class="login-bg">
+    <div class="login-bg-grid"></div>
+    <div class="login-bg-glow"></div>
+    <div class="login-traffic-line"></div>
+    <div class="login-traffic-line"></div>
+    <div class="login-traffic-line"></div>
+    <div class="login-traffic-line"></div>
+    <div class="login-traffic-line"></div>
+    <div class="login-traffic-line"></div>
+  </div>
+  <div class="login-wrap">
+    <div class="login-brand">Flow<span style="color:#38bdf8">AI</span></div>
+    <div class="login-tagline">Smart Traffic Intelligence System · v2.0</div>
+    <div class="login-box">
+
+      <!-- TABS -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">LOGIN</div>
+        <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">SIGN UP</div>
+      </div>
+
+      <!-- ── LOGIN FORM ── -->
+      <div class="auth-form active" id="form-login">
+        <div class="login-error" id="loginErr">Invalid credentials. Try admin / 1234</div>
+        <div class="lf">
+          <label>Username</label>
+          <input type="text" id="lu" placeholder="admin" value="admin"/>
+        </div>
+        <div class="lf">
+          <label>Password</label>
+          <input type="password" id="lp" placeholder="••••••••" value="1234"/>
+        </div>
+        <button class="login-btn" onclick="doLogin()">ACCESS SYSTEM</button>
+        <div class="login-hint" style="margin-top:14px">Demo: <b>admin</b> / <b>1234</b> &nbsp;·&nbsp; <span style="color:var(--cyan);cursor:pointer" onclick="switchTab('signup')">Create account →</span></div>
+      </div>
+
+      <!-- ── SIGNUP FORM ── -->
+      <div class="auth-form" id="form-signup">
+        <div class="auth-success" id="signupOk">✓ Account created! You can now log in.</div>
+        <div class="login-error" id="signupErr">Please fill all fields correctly.</div>
+        <div class="pw-row">
+          <div class="lf">
+            <label>First Name</label>
+            <input type="text" id="su-fname" placeholder="Arjun"/>
+          </div>
+          <div class="lf">
+            <label>Last Name</label>
+            <input type="text" id="su-lname" placeholder="Mehta"/>
+          </div>
+        </div>
+        <div class="lf">
+          <label>Email Address</label>
+          <input type="email" id="su-email" placeholder="you@college.edu"/>
+        </div>
+        <div class="lf">
+          <label>Username</label>
+          <input type="text" id="su-user" placeholder="Choose a username"/>
+        </div>
+        <div class="lf">
+          <label>Password</label>
+          <input type="password" id="su-pass" placeholder="Min. 6 characters" oninput="checkPw(this.value)"/>
+          <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
+          <div class="pw-hint" id="pwHint">Enter a password</div>
+        </div>
+        <div class="lf">
+          <label>Confirm Password</label>
+          <input type="password" id="su-pass2" placeholder="Repeat password"/>
+        </div>
+        <button class="login-btn" onclick="doSignup()">CREATE ACCOUNT</button>
+        <div class="login-hint" style="margin-top:14px">Already have an account? <span style="color:var(--cyan);cursor:pointer" onclick="switchTab('login')">Sign in →</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════ -->
+<div id="app-shell">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">FA</div>
+      <div class="sb-logo-text">Flow<span style="color:#38bdf8">AI</span></div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <div class="sb-item-icon">📊</div>
+        <div class="sb-item-label">Dashboard</div>
+      </div>
+      <div class="sb-item" onclick="showPage('analyzer')" id="nav-analyzer">
+        <div class="sb-item-icon">🗺️</div>
+        <div class="sb-item-label">Traffic Analyzer</div>
+      </div>
+      <div class="sb-item" onclick="showPage('aiflow')" id="nav-aiflow">
+        <div class="sb-item-icon">🤖</div>
+        <div class="sb-item-label">AI Flow Recs</div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-item" onclick="showPage('howitworks')" id="nav-howitworks">
+        <div class="sb-item-icon">⚙️</div>
+        <div class="sb-item-label">How It Works</div>
+      </div>
+    <div class="sb-divider"></div>
+      <!-- System Status in sidebar -->
+      <div class="sb-sys">
+        <div class="sb-sys-header">
+          <span class="sb-sys-header-icon">🖥️</span>
+          <span class="sb-sys-title">System Status</span>
+          <span class="sb-sys-badge">LIVE</span>
+        </div>
+        <div class="sb-sys-rows">
+          <div class="sb-sys-row">
+            <span class="sb-sys-row-icon">⚡</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">Dijkstra Engine</span>
+              <span class="sb-sys-val">Operational</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+          <div class="sb-sys-row">
+            <span class="sb-sys-row-icon">🗺️</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">Map Tile Service</span>
+              <span class="sb-sys-val">OpenStreetMap · Active</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+          <div class="sb-sys-row">
+            <span class="sb-sys-row-icon">🕸️</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">Road Graph</span>
+              <span class="sb-sys-val">30 nodes · 49 edges</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+          <div class="sb-sys-row">
+            <span class="sb-sys-row-icon">📍</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">GPS Coordinates</span>
+              <span class="sb-sys-val">All nodes mapped</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+          <div class="sb-sys-row">
+            <span class="sb-sys-row-icon">📐</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">Distance Engine</span>
+              <span class="sb-sys-val">Real edge-based km</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+          <div class="sb-sys-row" id="sessionStatusRow">
+            <span class="sb-sys-row-icon">📊</span>
+            <div class="sb-sys-row-body">
+              <span class="sb-sys-label">Session Routes</span>
+              <span class="sb-sys-val" id="sessionStatusVal">0 analyzed</span>
+            </div>
+            <div class="sb-sys-dot ok"></div>
+          </div>
+        </div>
+        <div class="sb-sys-uptime">Session started: <span id="sessionStart">—</span></div>
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sbInitial">A</div>
+        <div class="sb-user-info">
+          <div class="sb-user-name" id="sbName">Admin</div>
+          <div class="sb-user-role">Traffic Analyst</div>
+        </div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">⏻ LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="pg active" id="pg-dashboard">
+      <div class="pg-header">
+        <div>
+          <div class="pg-breadcrumb">FlowAI / <span>Dashboard</span></div>
+          <div class="pg-title">Command Center</div>
+          <div class="pg-subtitle">Real-time traffic intelligence overview</div>
+        </div>
+        <div class="pg-nav-btns">
+          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          <button class="logout-btn" onclick="doLogout()">⏻ &nbsp;Logout</button>
+        </div>
+      </div>
+      <div class="dash-body">
+
+        <div class="stat-row">
+          <div class="stat-card c1">
+            <div class="stat-card-label">Routes Analyzed This Session</div>
+            <div class="stat-card-val" id="ds1">0</div>
+            <div class="stat-card-sub" id="ds1-sub">No routes run yet</div>
+            <div class="stat-bg-icon">🛣️</div>
+          </div>
+          <div class="stat-card c2">
+            <div class="stat-card-label">Avg Travel Time</div>
+            <div class="stat-card-val" id="ds2">—</div>
+            <div class="stat-card-sub" id="ds2-sub">run a route to see</div>
+            <div class="stat-bg-icon">⏱️</div>
+          </div>
+          <div class="stat-card c3">
+            <div class="stat-card-label">Road Nodes in Graph</div>
+            <div class="stat-card-val" id="ds3">15</div>
+            <div class="stat-card-sub">covering Ahmedabad metro</div>
+            <div class="stat-bg-icon">📍</div>
+          </div>
+          <div class="stat-card c4">
+            <div class="stat-card-label">High Congestion Routes</div>
+            <div class="stat-card-val" id="ds4">0</div>
+            <div class="stat-card-sub" id="ds4-sub">congestion index &gt; 6</div>
+            <div class="stat-bg-icon">🚨</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- Quick Actions -->
+          <div class="dash-panel">
+            <div class="dash-panel-title">Quick Actions</div>
+            <div class="quick-actions">
+              <button class="qa-btn" onclick="showPage('analyzer')">
+                <div class="qa-icon">⚡</div>
+                <div class="qa-text">
+                  <div class="qa-title">Analyze New Route</div>
+                  <div class="qa-desc">Run Dijkstra + AI on selected source–destination</div>
+                </div>
+              </button>
+              <button class="qa-btn" onclick="showPage('howitworks')">
+                <div class="qa-icon">📖</div>
+                <div class="qa-text">
+                  <div class="qa-title">View System Docs</div>
+                  <div class="qa-desc">Architecture, algorithm details & pipeline</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Recent Analyses -->
+          <div class="dash-panel">
+            <div class="dash-panel-title">Recent Analyses</div>
+            <div class="recent-list" id="recentList">
+              <div style="color:var(--muted2);font-size:0.72rem;padding:20px 0;text-align:center;">No routes analyzed yet.<br>Go to Traffic Analyzer to get started.</div>
+            </div>
+          </div>
+
+          <!-- Hourly Traffic -->
+          <div class="dash-panel" style="grid-column:span 2;">
+            <div class="dash-panel-title">Hourly Traffic Index</div>
+            <div class="hour-chart" id="hourChart"></div>
+            <div class="hour-labels">
+              <span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── TRAFFIC ANALYZER ── -->
+    <div class="pg" id="pg-analyzer">
+      <div class="pg-header">
+        <div>
+          <div class="pg-breadcrumb">FlowAI / <span>Traffic Analyzer</span></div>
+          <div class="pg-title">Route Analyzer</div>
+          <div class="pg-subtitle">Dijkstra shortest path + AI congestion smoothening</div>
+        </div>
+        <div class="pg-nav-btns">
+          <button class="back-btn" onclick="goBack()"><span class="arr">←</span> Back</button>
+          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          <button class="logout-btn" onclick="doLogout()">⏻ &nbsp;Logout</button>
+        </div>
+      </div>
+      <div class="analyzer-body">
+        <div class="analyzer-layout">
+
+          <!-- Controls -->
+          <div class="ctrl-panel">
+            <div class="ctrl-panel-title">Route Parameters</div>
+            <div class="cf">
+              <label>Source Node</label>
+              <div class="custom-select-wrap" id="srcSelWrap">
+                <div class="custom-select-trigger" id="srcSelTrigger" onclick="toggleCustomSelect('srcSel')">
+                  <span class="custom-select-val" id="srcSelVal">— Select Origin —</span>
+                  <svg class="custom-select-arrow" width="10" height="7" viewBox="0 0 10 7" fill="none"><path d="M1 1l4 4 4-4" stroke="#6b7a99" stroke-width="1.5"/></svg>
+                </div>
+                <div class="custom-select-dropdown" id="srcSelDropdown"></div>
+              </div>
+              <select id="srcSel" style="display:none"></select>
+            </div>
+            <div class="cf">
+              <label>Destination Node</label>
+              <div class="custom-select-wrap" id="dstSelWrap">
+                <div class="custom-select-trigger" id="dstSelTrigger" onclick="toggleCustomSelect('dstSel')">
+                  <span class="custom-select-val" id="dstSelVal">— Select Destination —</span>
+                  <svg class="custom-select-arrow" width="10" height="7" viewBox="0 0 10 7" fill="none"><path d="M1 1l4 4 4-4" stroke="#6b7a99" stroke-width="1.5"/></svg>
+                </div>
+                <div class="custom-select-dropdown" id="dstSelDropdown"></div>
+              </div>
+              <select id="dstSel" style="display:none"></select>
+            </div>
+            <div class="cf">
+              <label>Time of Day — <span id="hrLabel" style="color:var(--cyan)">08:00</span></label>
+              <input type="range" class="cf-range" min="0" max="23" value="8" id="hrSlider" oninput="onSlider(this.value)"/>
+              <div class="cf-range-labels"><span>12 AM</span><span>11 PM</span></div>
+              <div id="timePeriodLabel" style="font-size:0.62rem;margin-top:6px;color:var(--green);font-family:'IBM Plex Mono',monospace;">🟢 Early Morning — Light Traffic</div>
+            </div>
+            <button class="run-btn" onclick="runAnalysis()" id="runBtn">⚡ RUN ANALYSIS</button>
+
+            <!-- Step animation (appears in panel while loading) -->
+            <div class="analyze-steps-overlay" id="analyzeStepsOverlay" style="margin-top:12px;">
+              <div class="analyze-spinner"></div>
+              <div class="analyze-step-text" id="analyzeStepText">Initializing...</div>
+              <div class="analyze-step-sub">FlowAI engine processing your route</div>
+              <div class="analyze-progress"><div class="analyze-progress-bar" id="analyzeProgressBar"></div></div>
+            </div>
+
+            <!-- Results divider + label -->
+            <div id="resultsSection" style="display:none">
+              <div class="ctrl-divider"></div>
+              <div class="ctrl-results-label">Analysis Results</div>
+
+              <!-- Route Summary 2×2 Grid -->
+              <div class="route-summary-grid" id="routeSummaryGrid" style="margin-bottom:10px;">
+                <div class="rsm-card rc1"><div class="rsm-label">Distance</div><div class="rsm-val" id="rsm-dist">—</div></div>
+                <div class="rsm-card rc2"><div class="rsm-label">Travel Time</div><div class="rsm-val" id="rsm-time">—</div></div>
+                <div class="rsm-card rc3"><div class="rsm-label">Signals</div><div class="rsm-val" id="rsm-signals">—</div></div>
+                <div class="rsm-card rc4"><div class="rsm-label">Traffic Level</div><div class="rsm-val" id="rsm-level" style="font-size:0.72rem;padding-top:3px;">—</div></div>
+              </div>
+
+              <!-- Optimal route path -->
+              <div class="route-box" id="routeBox" style="margin-bottom:8px;">
+                <div class="route-box-label">🟣 Optimal Path</div>
+                <div class="route-nodes" id="routeNodes"></div>
+              </div>
+
+              <!-- Alternate route -->
+              <div class="route-box" id="altRouteBox" style="display:none;border-left-color:var(--amber);margin-bottom:8px;">
+                <div class="route-box-label" style="color:var(--amber)">🟠 Alternate Route <span id="altRouteBadge" style="font-size:0.55rem;margin-left:8px;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);padding:2px 8px;color:var(--amber);font-family:'IBM Plex Mono',monospace;"></span></div>
+                <div class="route-nodes" id="altRouteNodes"></div>
+              </div>
+
+              <!-- AI box -->
+              <div class="ai-box" id="aiBox">
+                <div class="ai-box-header">
+                  <div class="ai-chip">AI Engine</div>
+                  <div class="ai-box-title">FlowAI Recommendations</div>
+                </div>
+                <div class="ai-insight-block" id="aiInsightBlock" style="display:none;margin-bottom:10px;">
+                  <div class="ai-insight-block-title">💡 AI Summary</div>
+                  <div class="ai-insight-block-body" id="aiInsightText"></div>
+                </div>
+                <div class="ai-recs-grid" id="aiRecs"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right side: metrics + full map -->
+          <div class="analyzer-right">
+
+            <!-- Metrics -->
+            <div class="metrics-grid">
+              <div class="mc cy">
+                <div class="mc-label">Distance</div>
+                <div class="mc-val" id="mv1">—</div>
+                <div class="mc-unit">kilometers</div>
+              </div>
+              <div class="mc gr">
+                <div class="mc-label">Travel Time</div>
+                <div class="mc-val" id="mv2">—</div>
+                <div class="mc-unit">minutes (est.)</div>
+              </div>
+              <div class="mc am">
+                <div class="mc-label">Density</div>
+                <div class="mc-val" id="mv3">—</div>
+                <div class="mc-unit">vehicles/km</div>
+              </div>
+              <div class="mc rd">
+                <div class="mc-label">Congestion</div>
+                <div class="mc-val" id="mv4">—</div>
+                <div class="mc-unit">index / 10</div>
+              </div>
+            </div>
+
+            <!-- Map — fills remaining height -->
+            <div class="map-box">
+              <div class="map-topbar">
+                <span class="map-topbar-title">Live Road Map — Ahmedabad &nbsp;<span class="osrm-badge">🛰 Real GPS Routing</span></span>
+                <div class="map-legend">
+                  <div class="ml-item"><div class="ml-dot" style="background:#38bdf8"></div>Origin</div>
+                  <div class="ml-item"><div class="ml-dot" style="background:#f472b6"></div>Destination</div>
+                  <div class="ml-item"><div class="ml-dot" style="background:#a78bfa"></div>Optimal Route</div>
+                  <div class="ml-item"><div class="ml-dot" style="background:#fb923c"></div>Alternate Route</div>
+                </div>
+              </div>
+              <div id="mapLeaflet" style="display:none"></div>
+              <div class="placeholder-map" id="mapPH">
+                <div class="ph">🗺️</div>
+                <div>Select origin &amp; destination, then run analysis</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HOW IT WORKS ── -->
+    <div class="pg" id="pg-howitworks">
+      <div class="pg-header">
+        <div>
+          <div class="pg-breadcrumb">FlowAI / <span>How It Works</span></div>
+          <div class="pg-title">System Architecture</div>
+          <div class="pg-subtitle">Four-stage AI pipeline for real-time traffic intelligence</div>
+        </div>
+        <div class="pg-nav-btns">
+          <button class="back-btn" onclick="goBack()"><span class="arr">←</span> Back</button>
+          <button class="logout-btn" onclick="doLogout()">⏻ &nbsp;Logout</button>
+        </div>
+      </div>
+      <div class="hiw-body">
+        <p class="hiw-intro">
+          FlowAI combines real-time IoT sensor data, graph theory, and machine learning to model, predict, and smooth urban traffic flow. The system operates as a four-stage pipeline — from raw sensor ingestion to actionable AI recommendations delivered in under 2 seconds.
+        </p>
+        <div class="hiw-steps">
+          <div class="hiw-step">
+            <div class="hiw-step-num">01</div>
+            <div class="hiw-step-content">
+              <div class="hiw-step-icon">📡</div>
+              <div class="hiw-step-title">Real-Time Data Collection</div>
+              <div class="hiw-step-desc">IoT sensors embedded at every major intersection stream vehicle counts, average speeds, and queue lengths every 30 seconds. GPS traces from connected vehicles are aggregated and anonymized. The raw feed is cleaned, normalized, and written to a distributed time-series database with sub-second latency.</div>
+              <div class="hiw-tags">
+                <span class="hiw-tag">IoT Sensors</span>
+                <span class="hiw-tag">GPS Traces</span>
+                <span class="hiw-tag">Time-Series DB</span>
+                <span class="hiw-tag">30s Updates</span>
+              </div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-num">02</div>
+            <div class="hiw-step-content">
+              <div class="hiw-step-icon">🕸️</div>
+              <div class="hiw-step-title">Graph Modeling</div>
+              <div class="hiw-step-desc">The city road network is modeled as a weighted directed graph G(V, E). Each node V represents an intersection; each edge E carries a dynamic weight derived from current traffic density, road capacity, speed limits, and historical congestion patterns. Edge weights are recomputed every 30 seconds from live sensor feeds.</div>
+              <div class="hiw-tags">
+                <span class="hiw-tag">Directed Graph</span>
+                <span class="hiw-tag">Dynamic Weights</span>
+                <span class="hiw-tag">Road Capacity</span>
+                <span class="hiw-tag">Live Updates</span>
+              </div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-num">03</div>
+            <div class="hiw-step-content">
+              <div class="hiw-step-icon">⚡</div>
+              <div class="hiw-step-title">Dijkstra's Shortest Path Algorithm</div>
+              <div class="hiw-step-desc">When a user requests a route, Dijkstra's algorithm runs on the live-weighted graph to find the path that minimizes total weighted travel cost — not just geographic distance, but actual time factoring in current congestion. The algorithm explores all reachable nodes using a priority queue (min-heap), guaranteeing the globally optimal result.</div>
+              <div class="hiw-tags">
+                <span class="hiw-tag">Dijkstra's Algorithm</span>
+                <span class="hiw-tag">Min-Heap PQ</span>
+                <span class="hiw-tag">O((V+E) log V)</span>
+                <span class="hiw-tag">Optimal Path</span>
+              </div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-num">04</div>
+            <div class="hiw-step-content">
+              <div class="hiw-step-icon">🤖</div>
+              <div class="hiw-step-title">AI Flow Smoothening</div>
+              <div class="hiw-step-desc">A trained gradient-boosted model analyzes historical patterns, current density, time-of-day, and day-of-week to predict upcoming bottlenecks 15–20 minutes ahead. The system recommends adaptive traffic signal timing adjustments, redistributes load to alternate corridors, and issues congestion warnings — all before gridlock forms.</div>
+              <div class="hiw-tags">
+                <span class="hiw-tag">Gradient Boosting</span>
+                <span class="hiw-tag">Predictive Alerts</span>
+                <span class="hiw-tag">Signal Timing</span>
+                <span class="hiw-tag">Load Balancing</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Algorithm deep-dive -->
+        <div class="hiw-algo">
+          <div>
+            <div class="algo-title">Dijkstra's Algorithm — Pseudocode</div>
+            <div class="code-block">
+<span class="kw">function</span> <span class="fn">dijkstra</span>(graph, src, dst):
+  dist[src] = <span class="nm">0</span>
+  dist[v]   = ∞ <span class="cm">for all other v</span>
+  pq = MinHeap()
+  pq.push(<span class="nm">0</span>, src)
+
+  <span class="kw">while</span> pq <span class="kw">not</span> empty:
+    (d, u) = pq.pop()
+    <span class="kw">if</span> u == dst: <span class="kw">break</span>
+    <span class="kw">for</span> edge (u→v, weight) <span class="kw">in</span> graph[u]:
+      nd = d + weight
+      <span class="kw">if</span> nd &lt; dist[v]:
+        dist[v] = nd
+        prev[v] = u
+        pq.push(nd, v)
+
+  <span class="cm">// Reconstruct path</span>
+  path = []
+  cur = dst
+  <span class="kw">while</span> cur: path.prepend(cur); cur = prev[cur]
+  <span class="kw">return</span> path, dist[dst]
+            </div>
+          </div>
+          <div>
+            <div class="algo-title">Edge Weight Formula</div>
+            <div class="algo-desc" style="margin-bottom:16px;">
+              Each road segment's weight is dynamically computed from three factors: base distance, real-time traffic load, and a time-of-day multiplier learned from historical data.
+            </div>
+            <div class="code-block">
+<span class="cm">// Dynamic edge weight</span>
+weight(e) =
+  distance(e)
+  × (1 + congestion_factor(e))
+  × time_multiplier(hour)
+
+<span class="cm">// Congestion factor (0.0–1.2)</span>
+congestion_factor =
+  (density / capacity) ^ 1.4
+
+<span class="cm">// Time multiplier from ML model</span>
+time_multiplier =
+  <span class="kw">if</span> rush_hour: <span class="nm">1.4</span> – <span class="nm">1.9</span>
+  <span class="kw">if</span> off_peak:  <span class="nm">0.6</span> – <span class="nm">0.9</span>
+  <span class="kw">else</span>:         <span class="nm">1.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI FLOW RECOMMENDATIONS ── -->
+    <div class="pg" id="pg-aiflow">
+      <div class="pg-header">
+        <div>
+          <div class="pg-breadcrumb">FlowAI / <span>AI Flow Recommendations</span></div>
+          <div class="pg-title">AI Flow Recommendations</div>
+          <div class="pg-subtitle">Real-time AI-driven traffic flow insights & optimization suggestions</div>
+        </div>
+        <div class="pg-nav-btns">
+          <button class="back-btn" onclick="goBack()"><span class="arr">←</span> Back</button>
+          <div class="live-badge"><div class="live-dot"></div>AI ACTIVE</div>
+          <button class="logout-btn" onclick="doLogout()">⏻ &nbsp;Logout</button>
+        </div>
+      </div>
+      <div class="aiflow-body">
+
+        <!-- Hero banner -->
+        <div class="aiflow-hero">
+          <div class="aiflow-hero-left">
+            <div class="aiflow-hero-title">🤖 <span>FlowAI</span> Recommendations Engine</div>
+            <div class="aiflow-hero-sub">Our gradient-boosted model continuously analyzes sensor data, historical patterns, and current conditions to surface actionable traffic optimizations — updated every 30 seconds across all 37 road nodes spanning Ahmedabad and Gandhinagar.</div>
+          </div>
+          <div class="aiflow-hero-stats">
+            <div class="aiflow-hero-stat">
+              <div class="aiflow-hero-stat-val cy" id="af-nodes">30</div>
+              <div class="aiflow-hero-stat-label">Nodes Monitored</div>
+            </div>
+            <div class="aiflow-hero-stat">
+              <div class="aiflow-hero-stat-val gr" id="af-confidence">94%</div>
+              <div class="aiflow-hero-stat-label">Model Confidence</div>
+            </div>
+            <div class="aiflow-hero-stat">
+              <div class="aiflow-hero-stat-val am" id="af-latency">1.8s</div>
+              <div class="aiflow-hero-stat-label">Avg Response</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6 recommendation cards -->
+        <div class="aiflow-grid">
+          <div class="aiflow-card c-red">
+            <div class="aiflow-card-icon">🚦</div>
+            <div class="aiflow-card-title">Signal Phase Optimization</div>
+            <div class="aiflow-card-body">
+              Naranpura–Memnagar corridor is showing <strong>queue buildup</strong> at peak hours (17:00–20:00). Extending green phase by <strong>18–22s</strong> on the eastbound approach is projected to reduce average queue length by <strong>~34%</strong>.
+            </div>
+            <div class="aiflow-card-tag urgent">⚠ Urgent</div>
+          </div>
+          <div class="aiflow-card c-green">
+            <div class="aiflow-card-icon">🔀</div>
+            <div class="aiflow-card-title">Load Redistribution</div>
+            <div class="aiflow-card-body">
+              Primary corridor <strong>Chandkheda → Naroda</strong> is operating at 78% capacity. Redistributing <strong>20–25%</strong> of eastbound flow via Motera–Bapunagar would reduce average travel time by ~8 min during peak windows.
+            </div>
+            <div class="aiflow-card-tag active">✓ Active</div>
+          </div>
+          <div class="aiflow-card c-amber">
+            <div class="aiflow-card-icon">⏱️</div>
+            <div class="aiflow-card-title">Peak Window Forecast</div>
+            <div class="aiflow-card-body">
+              Evening peak is predicted to begin at <strong>17:15</strong> today — 12 minutes earlier than the 7-day average. Congestion will concentrate around <strong>Kalupur, CTM, and Isanpur</strong> nodes. Pre-emptive signal adjustments recommended by 16:45.
+            </div>
+            <div class="aiflow-card-tag pending">⏳ Pending</div>
+          </div>
+          <div class="aiflow-card c-blue">
+            <div class="aiflow-card-icon">📡</div>
+            <div class="aiflow-card-title">Sensor Anomaly Detection</div>
+            <div class="aiflow-card-body">
+              Loop detector at <strong>Vatva GIDC</strong> reporting vehicle counts <strong>2.4× above baseline</strong> for this time slot. AI flags this as likely industrial shift change. Recommend temporary density cap on Narol–Vatva edge weight.
+            </div>
+            <div class="aiflow-card-tag info">ℹ Info</div>
+          </div>
+          <div class="aiflow-card c-purple">
+            <div class="aiflow-card-icon">🧠</div>
+            <div class="aiflow-card-title">Predictive Bottleneck Alert</div>
+            <div class="aiflow-card-body">
+              Model predicts a <strong>bottleneck forming at Ellis Bridge</strong> within the next <strong>15–20 minutes</strong> based on upstream density at Ambawadi. Rerouting advisory to Paldi–Vejalpur is recommended before congestion index reaches 8.0.
+            </div>
+            <div class="aiflow-card-tag urgent">⚠ Urgent</div>
+          </div>
+          <div class="aiflow-card c-pink">
+            <div class="aiflow-card-icon">💡</div>
+            <div class="aiflow-card-title">Off-Peak Opportunity</div>
+            <div class="aiflow-card-body">
+              Between <strong>10:00–12:00</strong> and <strong>14:00–16:00</strong> all major corridors are operating at under <strong>40% capacity</strong>. Ideal window for maintenance vehicles and freight routing via Science City–Ahmedabad Jn corridor.
+            </div>
+            <div class="aiflow-card-tag active">✓ Active</div>
+          </div>
+        </div>
+
+        <!-- Bottom: Timeline + Corridor heatmap -->
+        <div class="aiflow-bottom">
+
+          <!-- Recommendation timeline -->
+          <div class="aiflow-panel">
+            <div class="aiflow-panel-title">Today's AI Action Timeline</div>
+            <div class="aiflow-timeline">
+              <div class="aiflow-tl-item">
+                <div class="aiflow-tl-time">06:12</div>
+                <div class="aiflow-tl-dot" style="background:var(--green)"></div>
+                <div class="aiflow-tl-body">
+                  <div class="aiflow-tl-title">Early Morning — Clear Corridors</div>
+                  <div class="aiflow-tl-desc">All 30 nodes reporting below 20% density. Free-flow conditions across the network. No interventions required.</div>
+                </div>
+              </div>
+              <div class="aiflow-tl-item">
+                <div class="aiflow-tl-time">08:45</div>
+                <div class="aiflow-tl-dot" style="background:var(--amber)"></div>
+                <div class="aiflow-tl-body">
+                  <div class="aiflow-tl-title">Morning Build-up Detected</div>
+                  <div class="aiflow-tl-desc">Chandkheda and Sabarmati nodes hit 55% capacity. Green phase extended by 10s on inbound approach.</div>
+                </div>
+              </div>
+              <div class="aiflow-tl-item">
+                <div class="aiflow-tl-time">12:30</div>
+                <div class="aiflow-tl-dot" style="background:var(--green)"></div>
+                <div class="aiflow-tl-body">
+                  <div class="aiflow-tl-title">Midday Off-Peak Confirmed</div>
+                  <div class="aiflow-tl-desc">Network-wide average density dropped to 35%. Freight corridor advisory issued for Science City route.</div>
+                </div>
+              </div>
+              <div class="aiflow-tl-item">
+                <div class="aiflow-tl-time">16:48</div>
+                <div class="aiflow-tl-dot" style="background:var(--red)"></div>
+                <div class="aiflow-tl-body">
+                  <div class="aiflow-tl-title">Pre-Peak Rerouting Advisory</div>
+                  <div class="aiflow-tl-desc">Ellis Bridge congestion predicted. Paldi–Vejalpur rerouting advisory activated 12 min ahead of threshold breach.</div>
+                </div>
+              </div>
+              <div class="aiflow-tl-item">
+                <div class="aiflow-tl-time">17:15</div>
+                <div class="aiflow-tl-dot" style="background:var(--red)"></div>
+                <div class="aiflow-tl-body">
+                  <div class="aiflow-tl-title">Evening Peak — Active Monitoring</div>
+                  <div class="aiflow-tl-desc">Kalupur, CTM, Isanpur nodes at 80–90% capacity. Signal optimization and load redistribution active.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Corridor congestion heatmap -->
+          <div class="aiflow-panel">
+            <div class="aiflow-panel-title">Corridor Load Index</div>
+            <div id="aiflowHeatmap">
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Chandkheda–Naroda</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:78%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
+                <div class="aiflow-heat-val" style="color:#fcd34d">78%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Ellis Bridge</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:91%;background:linear-gradient(90deg,#ef4444,#fca5a5)"></div></div>
+                <div class="aiflow-heat-val" style="color:#fca5a5">91%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Naranpura–Sci City</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:62%;background:linear-gradient(90deg,#f59e0b,#fcd34d)"></div></div>
+                <div class="aiflow-heat-val" style="color:#fcd34d">62%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Satellite–Bopal</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:38%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+                <div class="aiflow-heat-val" style="color:#34d399">38%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Vatva GIDC–Narol</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:84%;background:linear-gradient(90deg,#ef4444,#fca5a5)"></div></div>
+                <div class="aiflow-heat-val" style="color:#fca5a5">84%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Paldi–Vejalpur</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:44%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+                <div class="aiflow-heat-val" style="color:#34d399">44%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Gandhinagar–Motera</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:29%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+                <div class="aiflow-heat-val" style="color:#34d399">29%</div>
+              </div>
+              <div class="aiflow-heatrow">
+                <div class="aiflow-heat-label">Maninagar–Isanpur</div>
+                <div class="aiflow-heat-bar-wrap"><div class="aiflow-heat-bar" style="width:71%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
+                <div class="aiflow-heat-val" style="color:#fcd34d">71%</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app-shell -->
+
+<script>
+// ═══════════════════════════════════
+//  GRAPH DATA — Real GPS Coordinates (Ahmedabad) — 30 Nodes
+// ═══════════════════════════════════
+const NODES = {
+  // North
+  'Naroda':          {lat:23.0536, lng:72.6561},
+  'Chandkheda':      {lat:23.1020, lng:72.5958},
+  'Sabarmati':       {lat:23.0743, lng:72.5747},
+  'Motera':          {lat:23.1002, lng:72.6272},
+  'Ranip':           {lat:23.0783, lng:72.5606},
+  'Gota':            {lat:23.1096, lng:72.5570},
+  'Bapunagar':       {lat:23.0418, lng:72.6328},
+  // Gandhinagar Sectors
+  'GN Sector 7':     {lat:23.2165, lng:72.6502},
+  'GN Sector 11':    {lat:23.2153, lng:72.6575},
+  'GN Sector 16':    {lat:23.2220, lng:72.6530},
+  'GN Sector 21':    {lat:23.2048, lng:72.6450},
+  'GN Sector 28':    {lat:23.1948, lng:72.6598},
+  'GIFT City':       {lat:23.1636, lng:72.6749},
+  'Sargasan':        {lat:23.1652, lng:72.6482},
+  // West
+  'Thaltej':         {lat:23.0563, lng:72.5085},
+  'Satellite':       {lat:23.0276, lng:72.5078},
+  'Bopal':           {lat:23.0297, lng:72.4749},
+  'Prahlad Nagar':   {lat:23.0140, lng:72.5078},
+  'Vejalpur':        {lat:22.9992, lng:72.5275},
+  'Jodhpur':         {lat:23.0217, lng:72.5228},
+  // Central
+  'Science City':    {lat:23.0627, lng:72.5466},
+  'Naranpura':       {lat:23.0583, lng:72.5678},
+  'Memnagar':        {lat:23.0488, lng:72.5456},
+  'Ambawadi':        {lat:23.0328, lng:72.5554},
+  'Ahmedabad Jn':    {lat:23.0269, lng:72.5978},
+  'Ellis Bridge':    {lat:23.0261, lng:72.5740},
+  'Kalupur':         {lat:23.0291, lng:72.6162},
+  'Paldi':           {lat:23.0107, lng:72.5653},
+  // East
+  'Maninagar':       {lat:22.9996, lng:72.6128},
+  'Isanpur':         {lat:22.9793, lng:72.6392},
+  'Vatva GIDC':      {lat:22.9649, lng:72.6308},
+  'Narol':           {lat:22.9743, lng:72.6508},
+  'Odhav':           {lat:23.0207, lng:72.6533},
+  'Nikol':           {lat:23.0390, lng:72.6618},
+  'CTM':             {lat:23.0148, lng:72.6378},
+  'Bodakdev':        {lat:23.0412, lng:72.5256},
+};
+
+const EDGES=[
+  // Gandhinagar sector internal + connectivity
+  ['GN Sector 16','GN Sector 7',4,1],
+  ['GN Sector 7','GN Sector 11',3,1],
+  ['GN Sector 11','GN Sector 21',5,1],
+  ['GN Sector 16','GN Sector 21',4,1],
+  ['GN Sector 21','GN Sector 28',5,1],
+  ['GN Sector 28','GIFT City',8,2],
+  ['GN Sector 21','Sargasan',6,1],
+  ['Sargasan','GIFT City',4,1],
+  ['GN Sector 7','Motera',13,2],
+  ['GN Sector 28','Chandkheda',10,2],
+  ['Sargasan','Chandkheda',8,2],
+  ['GIFT City','Naroda',14,2],
+  // North corridor
+  ['Motera','Chandkheda',5,2],
+  ['Chandkheda','Naroda',8,2],
+  ['Chandkheda','Sabarmati',7,2],
+  ['Chandkheda','Gota',6,2],
+  ['Sabarmati','Ranip',3,1],
+  ['Sabarmati','Gota',5,1],
+  ['Ranip','Naranpura',4,2],
+  ['Gota','Science City',8,2],
+  ['Motera','Bapunagar',10,2],
+  // West corridor
+  ['Gota','Thaltej',6,1],
+  ['Thaltej','Bodakdev',4,2],
+  ['Thaltej','Satellite',7,2],
+  ['Bodakdev','Satellite',3,2],
+  ['Bodakdev','Memnagar',4,2],
+  ['Satellite','Jodhpur',3,2],
+  ['Satellite','Bopal',9,1],
+  ['Jodhpur','Prahlad Nagar',2,2],
+  ['Jodhpur','Paldi',4,2],
+  ['Prahlad Nagar','Bopal',5,1],
+  ['Prahlad Nagar','Vejalpur',4,2],
+  ['Vejalpur','Paldi',5,2],
+  // Central corridor
+  ['Naranpura','Science City',4,2],
+  ['Naranpura','Memnagar',3,2],
+  ['Naranpura','Ahmedabad Jn',6,3],
+  ['Memnagar','Ambawadi',3,2],
+  ['Science City','Ahmedabad Jn',9,3],
+  ['Science City','Maninagar',11,2],
+  ['Ambawadi','Ellis Bridge',2,3],
+  ['Ambawadi','Paldi',3,3],
+  ['Ahmedabad Jn','Ellis Bridge',3,3],
+  ['Ahmedabad Jn','Kalupur',4,3],
+  ['Ellis Bridge','Paldi',4,3],
+  ['Ellis Bridge','Maninagar',7,3],
+  ['Kalupur','Bapunagar',5,2],
+  ['Kalupur','CTM',4,3],
+  ['Kalupur','Maninagar',6,3],
+  ['Paldi','Vejalpur',4,2],
+  // East corridor
+  ['Bapunagar','Nikol',6,2],
+  ['Bapunagar','Odhav',5,2],
+  ['Nikol','Naroda',6,2],
+  ['Nikol','Odhav',4,2],
+  ['Odhav','CTM',4,2],
+  ['CTM','Maninagar',5,3],
+  ['Maninagar','Isanpur',5,2],
+  ['Maninagar','Vatva GIDC',7,2],
+  ['Isanpur','Vatva GIDC',4,2],
+  ['Vatva GIDC','Narol',6,2],
+  ['Narol','Isanpur',5,2],
+];
+
+// Real-world per-hour traffic multiplier — Ahmedabad/Gandhinagar
+// Based on observed peak patterns: morning rush 8-10 AM, evening rush 6-9 PM
+// School/office commute creates twin peaks; afternoons are genuinely quiet
+const HOUR_MULT = [
+  0.38,  // 00:00 — dead of night
+  0.35,  // 01:00 — quietest hour
+  0.33,  // 02:00 — minimal traffic
+  0.35,  // 03:00 — minimal
+  0.40,  // 04:00 — milk/delivery trucks start
+  0.55,  // 05:00 — early workers, labourers
+  0.80,  // 06:00 — schools, early office start
+  1.40,  // 07:00 — school rush + BRTS/auto peak
+  1.90,  // 08:00 — heavy: offices + schools all open
+  2.10,  // 09:00 — morning peak max (SG Highway, Kalupur)
+  1.80,  // 10:00 — still busy, slight ease
+  1.40,  // 11:00 — tapering, schools settled
+  1.10,  // 12:00 — lunch hour, moderate
+  0.90,  // 13:00 — post-lunch lull
+  0.85,  // 14:00 — quietest afternoon slot
+  1.00,  // 15:00 — school pickup starts
+  1.30,  // 16:00 — school pickup + early leavers
+  1.75,  // 17:00 — evening peak building fast
+  2.20,  // 18:00 — peak: Ashram Road, CG Road choked
+  2.40,  // 19:00 — evening peak maximum
+  2.25,  // 20:00 — still very heavy
+  1.70,  // 21:00 — easing, markets closing
+  1.10,  // 22:00 — moderate, night-life/dining crowd
+  0.65,  // 23:00 — winding down
+];
+function hourMult(h){ return HOUR_MULT[Math.max(0,Math.min(23,h))]; }
+
+function buildGraph(mult){
+  const g={};
+  Object.keys(NODES).forEach(n=>g[n]=[]);
+  EDGES.forEach(([a,b,d,t])=>{
+    const tv=Math.min(3,Math.max(1,Math.round(t*mult)));
+    const w=d*(1+(tv-1)*0.4);
+    g[a].push({to:b,dist:d,traffic:tv,weight:w});
+    g[b].push({to:a,dist:d,traffic:tv,weight:w});
+  });
+  return g;
+}
+
+// Build graph with primary path edges heavily penalized — forces alternate
+function buildGraphAlt(mult, primaryPath){
+  const pathEdges = new Set();
+  for(let i=0;i<primaryPath.length-1;i++){
+    pathEdges.add(primaryPath[i]+'|'+primaryPath[i+1]);
+    pathEdges.add(primaryPath[i+1]+'|'+primaryPath[i]);
+  }
+  const g={};
+  Object.keys(NODES).forEach(n=>g[n]=[]);
+  EDGES.forEach(([a,b,d,t])=>{
+    const tv=Math.min(3,Math.max(1,Math.round(t*mult)));
+    const onPrimary = pathEdges.has(a+'|'+b) || pathEdges.has(b+'|'+a);
+    // Penalize primary path edges by 10x weight — Dijkstra will avoid them
+    const w = onPrimary ? d*10 : d*(1+(tv-1)*0.4);
+    g[a].push({to:b,dist:d,traffic:tv,weight:w,penalized:onPrimary});
+    g[b].push({to:a,dist:d,traffic:tv,weight:w,penalized:onPrimary});
+  });
+  return g;
+}
+
+function dijkstra(g,src,dst){
+  const dist={},prev={},vis=new Set();
+  Object.keys(g).forEach(n=>{dist[n]=Infinity;prev[n]=null;});
+  dist[src]=0;
+  const pq=[[0,src]];
+  while(pq.length){
+    pq.sort((a,b)=>a[0]-b[0]);
+    const[d,u]=pq.shift();
+    if(vis.has(u))continue;
+    vis.add(u);
+    if(u===dst)break;
+    for(const e of g[u]){
+      const nd=d+e.weight;
+      if(nd<dist[e.to]){dist[e.to]=nd;prev[e.to]=u;pq.push([nd,e.to]);}
+    }
+  }
+  const path=[];let cur=dst;
+  while(cur){path.unshift(cur);cur=prev[cur];}
+  return{path,cost:dist[dst]};
+}
+
+// ═══════════════════════════════════
+//  PAGE ROUTING
+// ═══════════════════════════════════
+let curPage='dashboard';
+
+// ── PAGE HISTORY FOR BACK BUTTON ──
+const pageHistory = [];
+
+window.showPage = function showPage(id){
+  // push current to history before switching
+  if(curPage && curPage !== id) pageHistory.push(curPage);
+
+
+  // exit current
+  const old=document.getElementById('pg-'+curPage);
+  if(old){old.classList.remove('active');old.classList.add('exit');setTimeout(()=>old.classList.remove('exit'),400);}
+  // activate new
+  const next=document.getElementById('pg-'+id);
+  if(next){setTimeout(()=>{next.classList.add('active');},50);}
+  // sidebar highlight
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  const ni=document.getElementById('nav-'+id);
+  if(ni)ni.classList.add('active');
+  curPage=id;
+  // special inits
+  if(id==='dashboard')initDash();
+  if(id==='analyzer')initAnalyzer();
+}
+
+// ═══════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════
+window.doLogin = function(){
+  const u=document.getElementById('lu').value.trim();
+  const p=document.getElementById('lp').value;
+  const match = registeredUsers.find(r=>r.user===u && r.pass===p);
+  if(match){
+    document.getElementById('pg-login').classList.add('hide');
+    const sh=document.getElementById('app-shell');
+    sh.classList.add('show');
+    const displayName = match.fname ? match.fname : u.charAt(0).toUpperCase()+u.slice(1);
+    document.getElementById('sbName').textContent=displayName;
+    document.getElementById('sbInitial').textContent=displayName.charAt(0).toUpperCase();
+    setTimeout(()=>initDash(),300);
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+    setTimeout(()=>document.getElementById('loginErr').classList.remove('show'),3000);
+  }
+};
+
+window.goBack = function(){
+  if(pageHistory.length > 0){
+    const prev = pageHistory.pop();
+    // navigate without pushing to history again
+    const old = document.getElementById('pg-'+curPage);
+    if(old){old.classList.remove('active');old.classList.add('exit');setTimeout(()=>old.classList.remove('exit'),400);}
+    const next = document.getElementById('pg-'+prev);
+    if(next){setTimeout(()=>next.classList.add('active'),50);}
+    document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+    const ni = document.getElementById('nav-'+prev);
+    if(ni) ni.classList.add('active');
+    curPage = prev;
+    if(prev==='dashboard') initDash();
+    if(prev==='analyzer') initAnalyzer();
+  } else {
+    showToast('You are on the first page');
+  }
+};
+
+window.doLogout = function(){
+  pageHistory.length = 0;
+  document.getElementById('app-shell').classList.remove('show');
+  document.getElementById('live-topbar').classList.remove('show');
+  document.getElementById('notif-panel').classList.remove('open');
+  notifData=[];notifUnread=0;notifOpen=false;
+  setTimeout(()=>{
+    document.getElementById('pg-login').classList.remove('hide');
+    document.getElementById('lu').value='admin';
+    document.getElementById('lp').value='';
+  },300);
+};
+
+document.addEventListener('keypress',e=>{
+  if(e.key==='Enter'){
+    if(!document.getElementById('pg-login').classList.contains('hide'))window.doLogin();
+  }
+});
+
+// ═══════════════════════════════════
+//  SESSION ROUTE HISTORY — Real Data
+// ═══════════════════════════════════
+const routeHistory = [];
+
+function saveRouteToHistory(src, dst, distKm, timeMins, cong, hour){
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  routeHistory.unshift({src, dst, distKm, timeMins, cong, hour, timeStr});
+  if(routeHistory.length > 10) routeHistory.pop();
+  updateDashStats();
+  pushRouteNotif(src, dst, distKm, timeMins, cong);
+}
+
+function updateDashStats(){
+  const count = routeHistory.length;
+  document.getElementById('ds1').textContent = count;
+  document.getElementById('ds1-sub').textContent = count===1 ? '1 route this session' : `${count} routes this session`;
+  document.getElementById('sessionStatusVal').textContent = `${count} analyzed`;
+  const topbarEl = document.getElementById('sessionRouteCount');
+  if(topbarEl) topbarEl.textContent = `${count} ROUTE${count!==1?'S':''} ANALYZED`;
+
+  if(count === 0){
+    document.getElementById('ds2').textContent = '—';
+    document.getElementById('ds2-sub').textContent = 'run a route to see';
+    document.getElementById('ds4').textContent = '0';
+    return;
+  }
+
+  // Avg travel time from real results
+  const avgTime = Math.round(routeHistory.reduce((s,r)=>s+r.timeMins,0) / count);
+  document.getElementById('ds2').textContent = avgTime + ' min';
+  document.getElementById('ds2-sub').textContent = 'avg across ' + count + ' route' + (count>1?'s':'');
+
+  // High congestion count (cong index > 6)
+  const highCong = routeHistory.filter(r=>r.cong>6).length;
+  document.getElementById('ds4').textContent = highCong;
+  document.getElementById('ds4-sub').textContent = highCong === 0 ? 'all routes clear' : `${highCong} route${highCong>1?'s':''} with heavy traffic`;
+}
+
+// ═══════════════════════════════════
+//  DASHBOARD INIT
+// ═══════════════════════════════════
+function initDash(){
+  buildHourChart();
+  buildRecentList();
+  updateDashStats();
+}
+
+function countUp(id,target,unit){
+  const el=document.getElementById(id);
+  let cur=0;const step=Math.ceil(target/50);
+  const iv=setInterval(()=>{
+    cur=Math.min(cur+step,target);
+    el.textContent=cur+(unit?` ${unit}`:'');
+    if(cur>=target)clearInterval(iv);
+  },20);
+}
+
+function buildHourChart(){
+  const c=document.getElementById('hourChart');
+  c.innerHTML='';
+  for(let h=0;h<24;h++){
+    const m=hourMult(h);
+    const pct=Math.round(m*45);
+    const col=m>1.4?'var(--red)':m>1.0?'var(--amber)':'var(--green)';
+    c.innerHTML+=`<div class="hbar" style="height:${pct}px;background:${col};opacity:0.75" title="${h}:00 — index ${m.toFixed(1)}"></div>`;
+  }
+}
+
+function buildRecentList(){
+  const rl=document.getElementById('recentList');
+  if(routeHistory.length===0){
+    rl.innerHTML='<div style="color:var(--muted);font-size:0.72rem;padding:20px 0;text-align:center;">No routes analyzed yet.<br>Go to Traffic Analyzer to get started.</div>';
+    return;
+  }
+  const badgeClass = c => c>6?'rb-high':c>3?'rb-mid':'rb-low';
+  const badgeText  = c => c>6?'Congested':c>3?'Moderate':'Clear';
+  rl.innerHTML = routeHistory.map(r=>`
+    <div class="recent-item">
+      <div class="recent-route">
+        <b>${r.src}</b> → <b>${r.dst}</b>
+        <span class="recent-badge ${badgeClass(r.cong)}">${badgeText(r.cong)}</span>
+      </div>
+      <div class="recent-meta">
+        <div class="recent-dist">${r.distKm} km · ${r.timeMins} min</div>
+        <div class="recent-time">${r.timeStr} · ${String(r.hour).padStart(2,'0')}:00 slot</div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════
+//  LEAFLET MAP — Real World Routing
+// ═══════════════════════════════════
+let leafletMap = null;
+let routeLayer = null;
+let nodeMarkers = [];
+
+function initLeafletMap(){
+  if(leafletMap) return;
+  if(typeof L === 'undefined'){
+    showToast('⚠ Map library not loaded. Check internet connection.');
+    return;
+  }
+  leafletMap = L.map('mapLeaflet',{
+    center:[23.0525, 72.5714],
+    zoom:12,
+    zoomControl:true,
+  });
+  // Dark CartoDB tiles — no API key needed
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains:'abcd',
+    maxZoom:19
+  }).addTo(leafletMap);
+
+  // Plot all node markers
+  Object.entries(NODES).forEach(([name,pos])=>{
+    const m = L.circleMarker([pos.lat,pos.lng],{
+      radius:6, fillColor:'#1e0d35', color:'#4c1d95',
+      weight:2, opacity:1, fillOpacity:0.9
+    }).addTo(leafletMap);
+    m.bindTooltip(name,{permanent:false,direction:'top',className:'leaflet-tooltip-dark'});
+    nodeMarkers.push(m);
+  });
+}
+
+function drawLeafletRoute(path, srcName, dstName, altPath){
+  if(typeof L === 'undefined' || !leafletMap) return;
+  if(routeLayer){ leafletMap.removeLayer(routeLayer); routeLayer=null; }
+  routeLayer = L.layerGroup().addTo(leafletMap);
+
+  const latlngs = path.map(n=>[NODES[n].lat, NODES[n].lng]);
+
+  // ── Draw alternate route first (behind) ──
+  if(altPath && altPath.length>1){
+    const altLatlngs = altPath.map(n=>[NODES[n].lat, NODES[n].lng]);
+    L.polyline(altLatlngs,{color:'#fb923c',weight:12,opacity:0.1}).addTo(routeLayer);
+    L.polyline(altLatlngs,{color:'#fb923c',weight:3,opacity:0.8,dashArray:'8,6'}).addTo(routeLayer);
+    // Alternate mid nodes
+    altPath.forEach((n,i)=>{
+      if(i===0||i===altPath.length-1) return;
+      if(path.includes(n)) return; // skip shared nodes
+      L.circleMarker([NODES[n].lat,NODES[n].lng],{
+        radius:5,fillColor:'#fb923c',color:'#fb923c',weight:1,fillOpacity:0.85
+      }).addTo(routeLayer)
+       .bindTooltip(`↩ ${n}`,{direction:'top',className:'leaflet-tooltip-dark'});
+    });
+  }
+
+  // ── Draw primary route on top ──
+  L.polyline(latlngs,{color:'#a78bfa',weight:12,opacity:0.15}).addTo(routeLayer);
+  L.polyline(latlngs,{color:'#a78bfa',weight:4,opacity:0.95}).addTo(routeLayer);
+
+  // Mid-path nodes for primary
+  path.forEach((n,i)=>{
+    if(i===0||i===path.length-1) return;
+    L.circleMarker([NODES[n].lat,NODES[n].lng],{
+      radius:5,fillColor:'#34d399',color:'#34d399',weight:1,fillOpacity:0.9
+    }).addTo(routeLayer)
+     .bindTooltip(n,{direction:'top',className:'leaflet-tooltip-dark'});
+  });
+
+  // Origin
+  L.circleMarker([NODES[srcName].lat,NODES[srcName].lng],{
+    radius:12,fillColor:'#38bdf8',color:'#fff',weight:2,fillOpacity:0.95
+  }).addTo(routeLayer)
+    .bindTooltip(`🔵 START: ${srcName}`,{permanent:true,direction:'top',className:'leaflet-tooltip-dark'});
+
+  // Destination
+  L.circleMarker([NODES[dstName].lat,NODES[dstName].lng],{
+    radius:12,fillColor:'#f472b6',color:'#fff',weight:2,fillOpacity:0.95
+  }).addTo(routeLayer)
+    .bindTooltip(`🏁 END: ${dstName}`,{permanent:true,direction:'top',className:'leaflet-tooltip-dark'});
+
+  // Fit both routes
+  const allPoints = [...latlngs, ...(altPath||[]).map(n=>[NODES[n].lat,NODES[n].lng])];
+  leafletMap.fitBounds(L.polyline(allPoints).getBounds(),{padding:[50,50]});
+}
+
+// ═══════════════════════════════════
+//  ANALYZER INIT
+// ═══════════════════════════════════
+let lastPath=[];
+let lastSrc='', lastDst='', lastRealDist=0, lastAltPath=[];
+
+// ── CUSTOM SELECT LOGIC ──
+window.toggleCustomSelect = function(id){
+  const wrap = document.getElementById(id+'Wrap');
+  const isOpen = wrap.classList.contains('open');
+  // close all
+  document.querySelectorAll('.custom-select-wrap.open').forEach(w=>w.classList.remove('open'));
+  if(!isOpen) wrap.classList.add('open');
+};
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.custom-select-wrap')) {
+    document.querySelectorAll('.custom-select-wrap.open').forEach(w=>w.classList.remove('open'));
+  }
+});
+
+function buildCustomDropdown(id, nodes, placeholder){
+  const dropdown = document.getElementById(id+'Dropdown');
+  const valEl = document.getElementById(id+'Val');
+  const hiddenSel = document.getElementById(id);
+  let html = `<div class="csd-option placeholder" data-value="">${placeholder}</div>`;
+  nodes.forEach(n=>{
+    html += `<div class="csd-option" data-value="${n}">📍 ${n}</div>`;
+  });
+  dropdown.innerHTML = html;
+  dropdown.querySelectorAll('.csd-option').forEach(opt=>{
+    opt.addEventListener('click', function(){
+      const val = this.dataset.value;
+      dropdown.querySelectorAll('.csd-option').forEach(o=>o.classList.remove('active'));
+      if(val){
+        this.classList.add('active');
+        valEl.textContent = val;
+        valEl.classList.add('selected');
+      } else {
+        valEl.textContent = placeholder;
+        valEl.classList.remove('selected');
+      }
+      // sync hidden select
+      hiddenSel.value = val;
+      hiddenSel.dispatchEvent(new Event('change'));
+      document.getElementById(id+'Wrap').classList.remove('open');
+    });
+  });
+}
+
+function initAnalyzer(){
+  const nodes=Object.keys(NODES);
+  ['srcSel','dstSel'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— Select —</option>';
+    nodes.forEach(n=>sel.innerHTML+=`<option value="${n}">${n}</option>`);
+  });
+  buildCustomDropdown('srcSel', nodes, '— Select Origin —');
+  buildCustomDropdown('dstSel', nodes, '— Select Destination —');
+  // Init real map after a short delay to ensure Leaflet is ready
+  setTimeout(()=>{
+    document.getElementById('mapLeaflet').style.display='block';
+    document.getElementById('mapPH').style.display='none';
+    if(typeof L !== 'undefined'){
+      initLeafletMap();
+      if(leafletMap) leafletMap.invalidateSize();
+    } else {
+      document.getElementById('mapLeaflet').style.display='none';
+      document.getElementById('mapPH').style.display='flex';
+      document.getElementById('mapPH').querySelector('div:last-child').textContent='Map unavailable — check internet connection';
+    }
+  },200);
+}
+
+window.onSlider = function onSlider(v){
+  const h=parseInt(v);
+  document.getElementById('hrLabel').textContent=`${String(h).padStart(2,'0')}:00`;
+
+  // Show time period label
+  const periodEl=document.getElementById('timePeriodLabel');
+  if(periodEl){
+    let period,color;
+    const m=hourMult(h);
+    if(h>=0&&h<=4)      {period='🟢 Late Night — Minimal Traffic';color='var(--green)';}
+    else if(h===5)      {period='🟢 Pre-Dawn — Early Workers';color='var(--green)';}
+    else if(h===6)      {period='🟡 Early Morning — Schools Opening';color='var(--amber)';}
+    else if(h===7)      {period='🟠 Morning Build-up — School + Auto Rush';color:'var(--amber)';}
+    else if(h===8)      {period='🔴 Heavy Rush — Offices + Schools (8 AM)';color='var(--red)';}
+    else if(h===9)      {period='🔴 Morning Peak Max — SG Hwy, Kalupur (9 AM)';color='var(--red)';}
+    else if(h===10)     {period='🟠 Peak Easing — Still Busy (10 AM)';color='var(--amber)';}
+    else if(h===11)     {period='🟡 Late Morning — Tapering Off';color='var(--amber)';}
+    else if(h===12)     {period='🟡 Noon — Lunch Hour, Moderate';color='var(--amber)';}
+    else if(h>=13&&h<=14){period='🟢 Afternoon Lull — Quietest Window';color='var(--green)';}
+    else if(h===15)     {period='🟡 School Pickup Starting (3 PM)';color='var(--amber)';}
+    else if(h===16)     {period='🟠 Evening Build-up — Early Leavers (4 PM)';color='var(--amber)';}
+    else if(h===17)     {period='🟠 Evening Peak Building — (5 PM)';color='var(--amber)';}
+    else if(h===18)     {period='🔴 Heavy Evening Peak — Ashram Rd, CG Rd (6 PM)';color='var(--red)';}
+    else if(h===19)     {period='🔴 Evening Peak Maximum (7 PM)';color='var(--red)';}
+    else if(h===20)     {period='🔴 Still Very Heavy (8 PM)';color='var(--red)';}
+    else if(h===21)     {period='🟠 Evening Easing — Markets Closing (9 PM)';color='var(--amber)';}
+    else if(h===22)     {period='🟡 Night — Dining / Social Crowd (10 PM)';color='var(--amber)';}
+    else                {period='🟢 Late Night — Winding Down (11 PM)';color='var(--green)';}
+    periodEl.textContent=period;
+    periodEl.style.color=color;
+  }
+
+  // If a route is already analyzed — live update metrics instantly
+  if(!lastSrc||!lastDst||!lastPath||lastPath.length<2) return;
+
+  const mult=hourMult(h);
+  const baseSpeed=42;
+  const actualSpeed=parseFloat((baseSpeed/mult).toFixed(1));
+  const freeFlowMins=Math.round((lastRealDist/baseSpeed)*60);
+  const adjustedMins=Math.round((lastRealDist/actualSpeed)*60);
+  const cong=Math.min(9.8,((mult-0.4)/1.5)*9).toFixed(1);
+  // Density directly proportional to travel time:
+  // more congestion → slower speed → higher vehicle density (veh/km)
+  const baseDensity = 20; // free-flow vehicles/km
+  const density=Math.round(baseDensity * (adjustedMins / Math.max(1, freeFlowMins)));
+
+  // Flash + update metric cards
+  ['mv1','mv2','mv3','mv4'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.style.transition='opacity 0.15s';
+    el.style.opacity='0';
+    setTimeout(()=>{el.style.opacity='1';},150);
+  });
+
+  setTimeout(()=>{
+    document.getElementById('mv1').textContent=lastRealDist.toFixed(1);
+    document.getElementById('mv2').textContent=adjustedMins;
+    document.getElementById('mv3').textContent=density;
+    document.getElementById('mv4').textContent=cong;
+
+    // Update route box info line
+    const infoEl=document.getElementById('routeInfoLine');
+    if(infoEl){
+      infoEl.innerHTML=`<span>📍 Road dist: <b style="color:var(--cyan)">${lastRealDist.toFixed(1)} km</b></span>
+        <span>⚡ Free-flow: <b style="color:var(--green)">${freeFlowMins} min</b></span>
+        <span>🚦 With traffic: <b style="color:var(--amber)">${adjustedMins} min</b></span>
+        <span>🛣️ Via ${lastPath.length} stops</span>`;
+    }
+
+    // Update route line color on map by congestion
+    if(routeLayer&&leafletMap){
+      const routeColor=parseFloat(cong)>6?'#f87171':parseFloat(cong)>4?'#fbbf24':'#a78bfa';
+      leafletMap.removeLayer(routeLayer);
+      routeLayer=L.layerGroup().addTo(leafletMap);
+      const latlngs=lastPath.map(n=>[NODES[n].lat,NODES[n].lng]);
+      // Redraw alternate first
+      if(lastAltPath&&lastAltPath.length>1){
+        const altLl=lastAltPath.map(n=>[NODES[n].lat,NODES[n].lng]);
+        L.polyline(altLl,{color:'#fb923c',weight:12,opacity:0.1}).addTo(routeLayer);
+        L.polyline(altLl,{color:'#fb923c',weight:3,opacity:0.8,dashArray:'8,6'}).addTo(routeLayer);
+      }
+      L.polyline(latlngs,{color:routeColor,weight:12,opacity:0.15}).addTo(routeLayer);
+      L.polyline(latlngs,{color:routeColor,weight:4,opacity:0.95}).addTo(routeLayer);
+      lastPath.forEach((n,i)=>{
+        if(i===0||i===lastPath.length-1)return;
+        L.circleMarker([NODES[n].lat,NODES[n].lng],{radius:5,fillColor:'#34d399',color:'#34d399',weight:1,fillOpacity:0.9})
+         .addTo(routeLayer).bindTooltip(n,{direction:'top',className:'leaflet-tooltip-dark'});
+      });
+      L.circleMarker([NODES[lastSrc].lat,NODES[lastSrc].lng],{radius:12,fillColor:'#38bdf8',color:'#fff',weight:2,fillOpacity:0.95})
+       .addTo(routeLayer).bindTooltip(`🔵 START: ${lastSrc}`,{permanent:true,direction:'top',className:'leaflet-tooltip-dark'});
+      L.circleMarker([NODES[lastDst].lat,NODES[lastDst].lng],{radius:12,fillColor:'#f472b6',color:'#fff',weight:2,fillOpacity:0.95})
+       .addTo(routeLayer).bindTooltip(`🏁 END: ${lastDst}`,{permanent:true,direction:'top',className:'leaflet-tooltip-dark'});
+    }
+
+    // Update AI recs
+    _showAI(mult,parseFloat(cong),adjustedMins,lastRealDist,lastPath,h);
+  },160);
+};
+
+// ─── HAVERSINE — Real GPS Distance ───
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ─── RUN ANALYSIS — Real GPS Routing via Dijkstra ───
+window.runAnalysis = async function runAnalysis(){
+  const src=document.getElementById('srcSel').value;
+  const dst=document.getElementById('dstSel').value;
+  const hour=parseInt(document.getElementById('hrSlider').value);
+  if(!src||!dst){showToast('⚠ Select both source and destination');return;}
+  if(src===dst){showToast('⚠ Source and destination must differ');return;}
+
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;
+
+  // ── Step-by-step animation instead of full-screen loader ──
+  const stepsOverlay=document.getElementById('analyzeStepsOverlay');
+  const stepText=document.getElementById('analyzeStepText');
+  const progressBar=document.getElementById('analyzeProgressBar');
+  stepsOverlay.classList.add('active');
+  progressBar.style.width='0%';
+
+  const steps=[
+    'Reading GPS coordinates...',
+    'Building real road graph...',
+    'Running Dijkstra algorithm...',
+    'Applying AI predictions...',
+    'Generating recommendations...'
+  ];
+  const progressSteps=['15%','35%','60%','80%','100%'];
+
+  let si=0;
+  stepText.textContent=steps[0];
+  progressBar.style.width=progressSteps[0];
+  const stepIv=setInterval(()=>{
+    si++;
+    if(si<steps.length){
+      stepText.style.opacity='0';
+      setTimeout(()=>{
+        stepText.textContent=steps[si];
+        progressBar.style.width=progressSteps[si];
+        stepText.style.opacity='1';
+      },180);
+    }
+  },500);
+
+  setTimeout(()=>{
+    clearInterval(stepIv);
+    stepsOverlay.classList.remove('active');
+    btn.disabled=false;
+
+    const mult=hourMult(hour);
+    const g=buildGraph(mult);
+    const{path}=dijkstra(g,src,dst);
+
+    if(!path||!path.includes(dst)){
+      showToast('⚠ No path found between these locations');return;
+    }
+
+    // ── Compute distance by summing real edge km along path ──
+    let realDistKm=0;
+    for(let i=0;i<path.length-1;i++){
+      const u=path[i],v=path[i+1];
+      const e=EDGES.find(([a,b])=>(a===u&&b===v)||(b===u&&a===v));
+      if(e) realDistKm+=e[2];
+    }
+    realDistKm=parseFloat(realDistKm.toFixed(1));
+
+    // Speed inversely follows hourMult — more traffic = slower speed
+    // Base city speed 42 kmph, divided by mult to get actual speed
+    const baseSpeed = 42;
+    const actualSpeed = parseFloat((baseSpeed / mult).toFixed(1));
+    const freeFlowMins = Math.round((realDistKm / baseSpeed) * 60);
+    const adjustedMins = Math.round((realDistKm / actualSpeed) * 60);
+
+    // Congestion — purely from hourMult, no random
+    const cong = Math.min(9.8, ((mult - 0.4) / 1.5) * 9).toFixed(1);
+    // Density directly proportional to travel time:
+    // more congestion → slower speed → higher vehicle density (veh/km)
+    const baseDensity = 20; // free-flow vehicles/km
+    const density = Math.round(baseDensity * (adjustedMins / Math.max(1, freeFlowMins)));
+
+    // ── Save state for live slider updates ──
+    lastPath=path; lastSrc=src; lastDst=dst; lastRealDist=realDistKm;
+
+    // ── Compute ALTERNATE route by penalizing primary path edges ──
+    let altPath=[], altDistKm=0, altMins=0;
+    const gAlt = buildGraphAlt(mult, path);
+    const altResult = dijkstra(gAlt, src, dst);
+    if(altResult.path && altResult.path.includes(dst) &&
+       JSON.stringify(altResult.path) !== JSON.stringify(path)){
+      altPath = altResult.path;
+      let altDist=0;
+      for(let i=0;i<altPath.length-1;i++){
+        const u=altPath[i],v=altPath[i+1];
+        const e=EDGES.find(([a,b])=>(a===u&&b===v)||(b===u&&a===v));
+        if(e) altDist+=e[2];
+      }
+      altDistKm = parseFloat(altDist.toFixed(1));
+      altMins = Math.round((altDistKm/actualSpeed)*60);
+    }
+
+    // ── Save to session history ──
+    lastAltPath=altPath;
+    saveRouteToHistory(src, dst, realDistKm, adjustedMins, parseFloat(cong), hour);
+
+    // Animate metrics
+    _animValFloat('mv1',realDistKm);
+    _animVal('mv2',adjustedMins);
+    _animVal('mv3',density);
+    document.getElementById('mv4').textContent=cong;
+
+    // ── Traffic pill helper ──
+    function trafficPill(c){
+      const cl=parseFloat(c)>6?'tp-high':parseFloat(c)>3?'tp-mid':'tp-low';
+      const lb=parseFloat(c)>6?'● Heavy':parseFloat(c)>3?'● Moderate':'● Clear';
+      return `<span class="traffic-pill ${cl}">${lb}</span>`;
+    }
+
+    // ── Signal timing generator (deterministic from path) ──
+    function genSignals(p){
+      const statuses=['green','green','yellow','red'];
+      const waits={'green':'15s','yellow':'30s','red':'55s'};
+      return p.filter((_,i)=>i>0&&i<p.length-1).slice(0,5).map((node,i)=>{
+        const s=statuses[i%statuses.length];
+        return{location:node, status:s, wait:waits[s]};
+      });
+    }
+
+    // ── Route Summary 2×2 Grid ──
+    const summaryGrid=document.getElementById('routeSummaryGrid');
+    const resultsSection=document.getElementById('resultsSection');
+    resultsSection.style.display='block';
+    const congF=parseFloat(cong);
+    const trafficLabel=congF>6?'Heavy':congF>3?'Moderate':'Clear';
+    document.getElementById('rsm-dist').textContent=realDistKm.toFixed(1)+' km';
+    document.getElementById('rsm-time').textContent=adjustedMins+' min';
+    document.getElementById('rsm-signals').textContent=path.length-1;
+    document.getElementById('rsm-level').innerHTML=trafficPill(cong);
+
+    // Draw route on real Leaflet map through GPS nodes
+    initLeafletMap();
+    if(leafletMap) drawLeafletRoute(path, src, dst, altPath.length>1?altPath:null);
+
+    // ── Route path display (with RECOMMENDED badge + pill + signal timings) ──
+    const rb=document.getElementById('routeBox');
+    const primarySignals=genSignals(path);
+    const totalWaitPrimary=primarySignals.reduce((s,sg)=>s+(sg.status==='red'?55:sg.status==='yellow'?30:15),0);
+    document.getElementById('routeNodes').innerHTML=
+      `<div class="route-rec-badge">⭐ OPTIMAL PATH</div>` +
+      path.map((n,i)=>{
+        const cls=i===0?'src':i===path.length-1?'dst':'mid';
+        return`<span class="rn ${cls}">${n}</span>${i<path.length-1?'<span class="rn-arrow">→</span>':''}`;
+      }).join('')+
+      `<div id="routeInfoLine" style="margin-top:10px;font-size:0.62rem;color:var(--muted2);font-family:'IBM Plex Mono',monospace;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+        <span>📍 Road dist: <b style="color:var(--cyan)">${realDistKm} km</b></span>
+        <span>⚡ Free-flow: <b style="color:var(--green)">${freeFlowMins} min</b></span>
+        <span>🚦 With traffic: <b style="color:var(--amber)">${adjustedMins} min</b></span>
+        <span>🛣️ Via ${path.length} stops</span>
+        ${trafficPill(cong)}
+      </div>
+      <div class="signal-section">
+        <div class="signal-section-title">🚦 AI-Predicted Signal Timings</div>
+        ${primarySignals.map(sg=>`
+          <div class="signal-row">
+            <div class="signal-loc">${sg.status==='green'?'🟢':sg.status==='yellow'?'🟡':'🔴'} ${sg.location}</div>
+            <div class="signal-right">
+              <span class="signal-status ${sg.status}">${sg.status.toUpperCase()}</span>
+              <span class="signal-wait">Wait: ${sg.wait}</span>
+            </div>
+          </div>`).join('')}
+        <div style="margin-top:8px;font-size:0.62rem;color:var(--muted2);">Est. total signal wait: <b style="color:var(--text)">${totalWaitPrimary}s</b></div>
+      </div>`;
+
+    // ── Show alternate route box (with ALT badge + pill + signals) ──
+    const altBox=document.getElementById('altRouteBox');
+    if(altPath.length>1){
+      altBox.style.display='block';
+      const saving = adjustedMins - altMins;
+      const badge = document.getElementById('altRouteBadge');
+      if(saving>0){
+        badge.textContent=`saves ~${saving} min · ${altDistKm} km`;
+        badge.style.background='rgba(52,211,153,0.1)';
+        badge.style.borderColor='rgba(52,211,153,0.3)';
+        badge.style.color='var(--green)';
+      } else {
+        badge.textContent=`${altDistKm} km · ${altMins} min · longer route`;
+      }
+      const altSignals=genSignals(altPath);
+      const totalWaitAlt=altSignals.reduce((s,sg)=>s+(sg.status==='red'?55:sg.status==='yellow'?30:15),0);
+      document.getElementById('altRouteNodes').innerHTML=
+        `<div class="route-alt-badge">🔀 ALTERNATE ROUTE</div>` +
+        altPath.map((n,i)=>{
+          const cls=i===0?'src':i===altPath.length-1?'dst':'mid';
+          return`<span class="rn ${cls}" style="${!path.includes(n)&&i>0&&i<altPath.length-1?'border-color:var(--amber);color:var(--amber)':''}">${n}</span>${i<altPath.length-1?'<span class="rn-arrow" style="color:var(--amber)">→</span>':''}`;
+        }).join('')+
+        `<div style="margin-top:8px;font-size:0.62rem;color:var(--muted2);font-family:'IBM Plex Mono',monospace;display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+          <span>📍 <b style="color:var(--amber)">${altDistKm} km</b></span>
+          <span>🚦 <b style="color:var(--amber)">${altMins} min</b></span>
+          <span>🔀 Via ${altPath.length} stops · avoids primary congestion points</span>
+          ${trafficPill(Math.min(9.8,(parseFloat(cong)+1.2)).toFixed(1))}
+        </div>
+        <div class="signal-section" style="border-color:rgba(251,146,60,0.15);background:rgba(251,146,60,0.03);">
+          <div class="signal-section-title" style="color:var(--amber);">🚦 AI-Predicted Signal Timings</div>
+          ${altSignals.map(sg=>`
+            <div class="signal-row">
+              <div class="signal-loc">${sg.status==='green'?'🟢':sg.status==='yellow'?'🟡':'🔴'} ${sg.location}</div>
+              <div class="signal-right">
+                <span class="signal-status ${sg.status}">${sg.status.toUpperCase()}</span>
+                <span class="signal-wait">Wait: ${sg.wait}</span>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:8px;font-size:0.62rem;color:var(--muted2);">Est. total signal wait: <b style="color:var(--text)">${totalWaitAlt}s</b></div>
+        </div>`;
+    } else {
+      altBox.style.display='none';
+    }
+
+    _showAI(mult,parseFloat(cong),adjustedMins,realDistKm,path,hour,altPath,altMins,altDistKm);
+    showToast(`✓ ${src} → ${dst} · ${realDistKm} km · ~${adjustedMins} min`);
+
+  },2200);
+}
+
+function _animVal(id,target){
+  const el=document.getElementById(id);let cur=0;
+  const iv=setInterval(()=>{cur=Math.min(cur+Math.ceil(target/30),target);el.textContent=cur;if(cur>=target)clearInterval(iv);},25);
+}
+
+function _animValFloat(id,target){
+  const el=document.getElementById(id);
+  let cur=0; const steps=40;
+  const step=target/steps;
+  const iv=setInterval(()=>{
+    cur=Math.min(cur+step,target);
+    el.textContent=cur.toFixed(1);
+    if(cur>=target){el.textContent=target.toFixed(1);clearInterval(iv);}
+  },25);
+}
+
+function _showAI(mult,cong,time,dist,path,hour,altPath,altMins,altDistKm){
+  const box=document.getElementById('aiBox');
+  const inPeak=(hour>=18&&hour<=20);
+  const inMorningPeak=(hour>=8&&hour<=10);
+  const inMorning=(hour>=6&&hour<=7);
+  const inNight=(hour>=0&&hour<=5)||(hour>=23&&hour<=23);
+  const mid=path[Math.floor(path.length/2)]||path[0];
+
+  // Real confidence: based on how direct the path is (fewer hops = more confident)
+  const maxHops = Object.keys(NODES).length;
+  const confidence = Math.round(100 - ((path.length / maxHops) * 15));
+
+  // Real time saving: difference between peak and current travel time
+  const peakSpeed = 42 / 2.4;
+  const peakTime  = Math.round((dist / peakSpeed) * 60);
+  const timeSaved = Math.max(0, peakTime - time);
+
+  // Real alternate: pick node not on current path that's closest to midpoint
+  const allNodes = Object.keys(NODES);
+  const alternate = allNodes.find(n => !path.includes(n)) || path[1];
+
+  // ── AI Insight Summary Block ──
+  const hasHeavy = cong >= 7;
+  const altSaving = altMins ? Math.max(0, time - altMins) : 0;
+  const signalCount = path.length - 1;
+  const totalSignalWait = signalCount * (cong > 6 ? 45 : cong > 3 ? 28 : 15);
+  const forecast = inPeak ? 'expected to stay heavy until ~21:30'
+    : inMorningPeak ? 'expected to ease after ~11:00'
+    : cong > 5 ? 'expected to ease in ~45 min'
+    : 'expected to remain light for this time window';
+
+  const insightEl = document.getElementById('aiInsightBlock');
+  const insightText = document.getElementById('aiInsightText');
+  insightEl.style.display='block';
+  insightText.innerHTML=`
+    <strong>Best Route:</strong> ${path[0]} → ${path[path.length-1]} via ${path.length} stops.<br><br>
+    ${hasHeavy
+      ? `⚠️ <strong>Heavy traffic detected.</strong> ${altPath&&altPath.length>1&&altSaving>0?`Alternate route saves approximately <strong>${altSaving} min</strong>.`:'Primary route is still optimal given current conditions.'}`
+      : `✅ <strong>Traffic conditions are favorable.</strong> You're travelling during a ${inNight?'late night':inMorning?'early morning':'non-peak'} window — ${Math.round((1/mult)*100)}% less congested than peak hours.`
+    }<br><br>
+    <strong>Signal Analysis:</strong> ${signalCount} signals on this route with an estimated total wait of <strong>~${totalSignalWait}s</strong>. AI timing synchronization is active to minimize stops.<br><br>
+    <strong>2-Hour Forecast:</strong> Traffic on this corridor is ${forecast}. Route confidence: <strong>${confidence}%</strong>.
+  `;
+
+
+  const items=[
+    {
+      icon:'🚦',
+      title:'Signal Optimization',
+      body:`${cong>6?'High':'Moderate'} congestion index (${cong}) detected near ${mid}. Recommend extending green phase by ${cong>6?'18–22':'10–14'}s to reduce queue buildup by ~${Math.round(cong*3)}%.`
+    },
+    inPeak
+      ?{icon:'⏱️',title:'Evening Peak Alert',      body:`Evening peak detected (${String(hour).padStart(2,'0')}:00 — 5 PM to 9 PM). Travelling now takes ${time} min. Waiting until 22:00 could reduce travel time by ~${timeSaved} min on this corridor.`}
+      :inMorningPeak
+      ?{icon:'⏱️',title:'Morning Peak Alert',      body:`Morning peak detected (${String(hour).padStart(2,'0')}:00 — 9 AM to 11:30 AM). Heavy school and office traffic. Estimated delay vs off-peak: ~${timeSaved} min.`}
+      :inMorning
+      ?{icon:'🟢',title:'Early Morning Advantage',body:`Early morning slot (${String(hour).padStart(2,'0')}:00) detected. Roads are ${Math.round((1/mult)*100)}% less congested than peak. Estimated time saving vs peak: ${timeSaved} min.`}
+      :inNight
+      ?{icon:'🌙',title:'Night Conditions',      body:`Late night slot. Traffic density is minimal. Travel time of ${time} min is the fastest possible for this ${dist} km route.`}
+      :{icon:'✅',title:'Off-Peak Window',        body:`Current conditions (${String(hour).padStart(2,'0')}:00) are ${Math.round((1/mult)*100)}% better than peak hours. Estimated saving vs peak: ${timeSaved} min.`},
+    {
+      icon:'🔀',
+      title:'Alternate Corridor',
+      body:`Route via ${alternate} could distribute load from ${mid}. Useful if congestion index exceeds 7.0. Current index: ${cong} — ${cong>7?'alternate recommended':'primary route optimal'}.`
+    },
+    {
+      icon:'📊',
+      title:'Flow Prediction',
+      body:`At ${String(hour).padStart(2,'0')}:00 the traffic multiplier is ${mult.toFixed(2)}×. Congestion will ${inPeak?'stay heavy until ~22:00':inMorningPeak?'ease after ~11:30':cong>5?'ease in ~45 min':'remain light for this time slot'}.`
+    },
+    {
+      icon:'🤖',
+      title:'Dijkstra Result',
+      body:`Explored ${Object.keys(NODES).length} nodes across ${EDGES.length} edges. Optimal path found in ${path.length-1} segments covering ${dist} km. Route confidence: ${confidence}%.`
+    },
+    {
+      icon:'💡',
+      title:'Rerouting Threshold',
+      body:`Auto-reroute triggers if congestion exceeds 8.0. Current index: ${cong}. ${parseFloat(cong)>=8?`⚠ Threshold reached — consider rerouting via ${alternate}.`:`${(8-parseFloat(cong)).toFixed(1)} points below threshold — no rerouting needed.`}`
+    },
+  ];
+  document.getElementById('aiRecs').innerHTML=items.map(i=>`
+    <div class="ai-rec">
+      <div class="ai-rec-icon">${i.icon}</div>
+      <div class="ai-rec-title">${i.title}</div>
+      <div class="ai-rec-body">${i.body}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── AUTH TAB SWITCH ──
+window.switchTab = function(tab){
+  document.getElementById('form-login').classList.toggle('active', tab==='login');
+  document.getElementById('form-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('signupErr').classList.remove('show');
+  document.getElementById('signupOk').classList.remove('show');
+};
+
+// ── SIGNUP ──
+const registeredUsers = [{user:'admin',pass:'1234'}];
+
+window.doSignup = function(){
+  const fname = document.getElementById('su-fname').value.trim();
+  const lname = document.getElementById('su-lname').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const user  = document.getElementById('su-user').value.trim();
+  const pass  = document.getElementById('su-pass').value;
+  const pass2 = document.getElementById('su-pass2').value;
+  const errEl = document.getElementById('signupErr');
+
+  errEl.classList.remove('show');
+  if(!fname||!lname||!email||!user||!pass||!pass2){
+    errEl.textContent='Please fill in all fields.'; errEl.classList.add('show'); return;
+  }
+  if(!/\S+@\S+\.\S+/.test(email)){
+    errEl.textContent='Enter a valid email address.'; errEl.classList.add('show'); return;
+  }
+  if(pass.length<6){
+    errEl.textContent='Password must be at least 6 characters.'; errEl.classList.add('show'); return;
+  }
+  if(pass!==pass2){
+    errEl.textContent='Passwords do not match.'; errEl.classList.add('show'); return;
+  }
+  if(registeredUsers.find(u=>u.user===user)){
+    errEl.textContent='Username already taken. Choose another.'; errEl.classList.add('show'); return;
+  }
+  registeredUsers.push({user, pass, fname, lname, email});
+  document.getElementById('su-fname').value='';
+  document.getElementById('su-lname').value='';
+  document.getElementById('su-email').value='';
+  document.getElementById('su-user').value='';
+  document.getElementById('su-pass').value='';
+  document.getElementById('su-pass2').value='';
+  document.getElementById('pwBar').style.width='0%';
+  document.getElementById('pwHint').textContent='Enter a password';
+  document.getElementById('signupOk').classList.add('show');
+  setTimeout(()=>{ window.switchTab('login'); document.getElementById('lu').value=user; }, 1800);
+};
+
+// ── PASSWORD STRENGTH ──
+window.checkPw = function(val){
+  const bar=document.getElementById('pwBar');
+  const hint=document.getElementById('pwHint');
+  let score=0;
+  if(val.length>=6)score++;
+  if(val.length>=10)score++;
+  if(/[A-Z]/.test(val))score++;
+  if(/[0-9]/.test(val))score++;
+  if(/[^A-Za-z0-9]/.test(val))score++;
+  const levels=[
+    {w:'0%',  bg:'transparent', label:''},
+    {w:'25%', bg:'var(--red)',  label:'Weak'},
+    {w:'50%', bg:'var(--amber)',label:'Fair'},
+    {w:'75%', bg:'var(--amber)',label:'Good'},
+    {w:'90%', bg:'var(--green)',label:'Strong'},
+    {w:'100%',bg:'var(--green)',label:'Very strong'},
+  ];
+  const l=levels[Math.min(score,5)];
+  bar.style.width=l.w; bar.style.background=l.bg;
+  hint.textContent=l.label; hint.style.color=l.bg;
+};
+
+// ══════════════════════════════════════
+//  REAL-TIME FEATURES
+// ══════════════════════════════════════
+
+// ── LIVE CLOCK ──
+function startLiveClock(){
+  function tick(){
+    const now=new Date();
+    const hh=String(now.getHours()).padStart(2,'0');
+    const mm=String(now.getMinutes()).padStart(2,'0');
+    const ss=String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('topbarClock').textContent=`${hh}:${mm}:${ss}`;
+    const days=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    document.getElementById('topbarDate').textContent=
+      `${days[now.getDay()]} ${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
+  tick();setInterval(tick,1000);
+}
+
+// ══════════════════════════════════════
+//  NOTIFICATIONS — Real Route Based
+// ══════════════════════════════════════
+let notifData = [];
+let notifOpen = false;
+let notifUnread = 0;
+
+function pushRouteNotif(src, dst, distKm, timeMins, cong){
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  let type, msg;
+  if(cong >= 8){
+    type='alert';
+    msg=`Heavy congestion on ${src} → ${dst} route. Index ${cong.toFixed(1)} — travel time ${timeMins} min for ${distKm} km.`;
+  } else if(cong >= 5){
+    type='warn';
+    msg=`Moderate traffic on ${src} → ${dst}. ${distKm} km · ${timeMins} min · congestion index ${cong.toFixed(1)}.`;
+  } else if(cong <= 2){
+    type='ok';
+    msg=`Clear conditions on ${src} → ${dst}. Optimal travel: ${timeMins} min for ${distKm} km.`;
+  } else {
+    type='info';
+    msg=`Route analyzed: ${src} → ${dst}. Distance ${distKm} km · Est. time ${timeMins} min.`;
+  }
+  notifData.unshift({type, msg, loc:`${src} → ${dst}`, time});
+  if(notifData.length>30) notifData.pop();
+  notifUnread++;
+  renderNotifs();
+  updateNotifCount();
+  if(type==='alert') showToast(`🚨 Heavy traffic: ${src} → ${dst} · ${timeMins} min`);
+}
+
+function renderNotifs(){
+  const list = document.getElementById('notifList');
+  if(!list) return;
+  if(notifData.length===0){
+    list.innerHTML='<div class="notif-empty">No alerts yet. Analyze a route to generate alerts.</div>';
+    return;
+  }
+  list.innerHTML = notifData.map(n=>`
+    <div class="notif-item ${n.type}">
+      <div class="notif-item-head">
+        <span class="notif-item-type">${n.type.toUpperCase()}</span>
+        <span class="notif-item-time">${n.time}</span>
+      </div>
+      <div class="notif-item-msg">${n.msg}</div>
+      <div class="notif-item-loc">📍 ${n.loc}</div>
+    </div>`).join('');
+}
+
+function updateNotifCount(){
+  const el = document.getElementById('notifCount');
+  if(el) el.textContent = notifUnread > 9 ? '9+' : notifUnread;
+}
+
+window.toggleNotifPanel = function(){
+  notifOpen = !notifOpen;
+  document.getElementById('notif-panel').classList.toggle('open', notifOpen);
+  if(notifOpen){ notifUnread=0; updateNotifCount(); }
+};
+
+window.clearNotifs = function(){
+  notifData=[];notifUnread=0;renderNotifs();updateNotifCount();
+};
+
+// ── INIT ON LOGIN ──
+const _origLogin = window.doLogin;
+window.doLogin = function(){
+  _origLogin && _origLogin();
+  setTimeout(()=>{
+    if(document.getElementById('app-shell').classList.contains('show')){
+      initRealtime();
+    }
+  },600);
+};
+
+function initRealtime(){
+  document.getElementById('live-topbar').classList.add('show');
+  startLiveClock();
+  // Set session start time
+  const now = new Date();
+  const el = document.getElementById('sessionStart');
+  if(el) el.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  if(document.getElementById('app-shell').classList.contains('show')) initRealtime();
+});
+
+// ══════════════════════════════════════
+//  RIPPLE EFFECT — all buttons
+// ══════════════════════════════════════
+document.addEventListener('click', e => {
+  const btn = e.target.closest('button, .run-btn, .login-btn, .qa-btn, .back-btn');
+  if (!btn) return;
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  btn.appendChild(r);
+  r.addEventListener('animationend', () => r.remove());
+});
+
+// ══════════════════════════════════════
+//  ANIMATED COUNTER — aiflow hero stats
+// ══════════════════════════════════════
+function animateCount(el, target, decimals=0, suffix=''){
+  if(!el) return;
+  let cur=0; const steps=40; const step=target/steps;
+  const iv=setInterval(()=>{
+    cur=Math.min(cur+step,target);
+    el.textContent=(decimals?cur.toFixed(decimals):Math.round(cur))+suffix;
+    if(cur>=target){ el.textContent=target+(decimals?'':'')+suffix; clearInterval(iv); }
+  },28);
+}
+
+// Trigger hero counters when AI Flow page opens
+const _origShow = window.showPage;
+window.showPage = function(id){
+  _origShow(id);
+  if(id==='aiflow'){
+    setTimeout(()=>{
+      animateCount(document.getElementById('af-nodes'), 37, 0, '');
+      animateCount(document.getElementById('af-confidence'), 94, 0, '%');
+      animateCount(document.getElementById('af-latency'), 1.8, 1, 's');
+    }, 300);
+  }
+};
+</script>
+</body>
+</html>
