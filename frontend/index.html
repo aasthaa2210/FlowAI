@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FlowAI — Route Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ── -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+          <path d="M3 12h11M14 12l-4-4M14 12l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12h-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">FlowAI</span>
+    </div>
+    <p class="auth-sub">Route Intelligence for Ahmedabad</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin">Log in</button>
+      <button class="auth-tab" id="tabSignup">Sign up</button>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <div class="field">
+        <label for="loginId">Username or email</label>
+        <input type="text" id="loginId" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required autocomplete="current-password" />
+      </div>
+      <div id="loginError" class="error-box" hidden></div>
+      <button type="submit" class="btn btn-primary auth-submit">Log in</button>
+    </form>
+
+    <form id="signupForm" class="auth-form" hidden>
+      <div class="field">
+        <label for="signupUsername">Username</label>
+        <input type="text" id="signupUsername" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="signupEmail">Email</label>
+        <input type="email" id="signupEmail" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" required minlength="6" autocomplete="new-password" />
+        <span class="field-hint">At least 6 characters</span>
+      </div>
+      <div id="signupError" class="error-box" hidden></div>
+      <button type="submit" class="btn btn-primary auth-submit">Create account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── APP SCREEN ── -->
+<div class="frame" id="appScreen" hidden>
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+          <path d="M3 12h11M14 12l-4-4M14 12l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12h-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">FlowAI</span>
+      <span class="brand-sub">Route Intelligence · Ahmedabad</span>
+    </div>
+    <div class="topbar-right">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span class="live-label">Live</span>
+      <span class="divider"></span>
+      <span class="clock mono" id="clock">--:--:--</span>
+      <span class="date mono" id="clockDate">---</span>
+      <span class="divider"></span>
+      <span class="api-status" id="apiStatus">checking API…</span>
+      <span class="divider"></span>
+      <button class="profile-btn" id="profileBtn">
+        <span class="profile-avatar" id="profileAvatar">?</span>
+        <span id="profileUsername">—</span>
+      </button>
+      <button class="btn btn-ghost" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="grid">
+
+    <!-- LEFT COLUMN -->
+    <section class="col col-left">
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Route analysis</h2>
+          <span class="panel-hint">Pulls live directions + a congestion index from your backend</span>
+        </div>
+
+        <form id="routeForm" class="route-form">
+          <div class="field">
+            <label for="fromSelect">From</label>
+            <select id="fromSelect" required></select>
+          </div>
+          <div class="field">
+            <label for="toSelect">To</label>
+            <select id="toSelect" required></select>
+          </div>
+          <button type="submit" class="btn btn-primary" id="analyzeBtn">Analyze route</button>
+        </form>
+
+        <div id="routeError" class="error-box" hidden></div>
+
+        <div id="mapContainer" class="map-container" hidden>
+          <div id="map"></div>
+        </div>
+
+        <div id="resultBlock" class="result-block" hidden>
+          <div class="result-top">
+            <div class="result-route" id="resultRoute">—</div>
+            <div class="result-stats">
+              <div class="stat">
+                <span class="stat-val mono" id="statDistance">—</span>
+                <span class="stat-label">km</span>
+              </div>
+              <div class="stat">
+                <span class="stat-val mono" id="statDuration">—</span>
+                <span class="stat-label">minutes</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Signature element: congestion tick-gauge -->
+          <div class="gauge-wrap">
+            <div class="gauge-label-row">
+              <span>Congestion index</span>
+              <span class="mono gauge-value" id="gaugeValue">0.0 / 10</span>
+            </div>
+            <div class="gauge" id="gauge">
+              <div class="gauge-ticks" id="gaugeTicks"></div>
+              <div class="gauge-needle" id="gaugeNeedle"></div>
+            </div>
+            <div class="gauge-scale">
+              <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span>
+            </div>
+          </div>
+
+          <div class="advice-row">
+            <span class="advice-tag" id="adviceTag">—</span>
+            <span class="advice-text" id="adviceText">—</span>
+          </div>
+
+          <button class="btn btn-secondary save-btn" id="saveRouteBtn">☆ Save this route</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Analyzed routes</h2>
+          <span class="panel-hint">Feeds notifications and AI recommendations</span>
+        </div>
+        <div id="historyList" class="history-list">
+          <div class="empty-state">No routes analyzed yet.</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN -->
+    <section class="col col-right">
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Notifications</h2>
+          <span class="panel-hint">Rule-based alerts from analyzed routes</span>
+        </div>
+        <div id="notifList" class="notif-list">
+          <div class="empty-state">Analyze a route to generate alerts.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>AI recommendations</h2>
+          <span class="panel-hint">Generated from your analyzed routes</span>
+        </div>
+        <button class="btn btn-secondary" id="recBtn" disabled>Generate insights</button>
+        <div id="recError" class="error-box" hidden></div>
+        <div id="recGrid" class="rec-grid"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Saved routes</h2>
+          <span class="panel-hint">Routes you've bookmarked to this account</span>
+        </div>
+        <div id="savedList" class="saved-list">
+          <div class="empty-state">No saved routes yet.</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- ── PROFILE MODAL ── -->
+<div class="modal-backdrop" id="profileModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Profile</h2>
+      <button class="chat-close" id="profileClose" aria-label="Close">×</button>
+    </div>
+    <div class="profile-row">
+      <span class="profile-label">Username</span>
+      <span class="mono" id="profileModalUsername">—</span>
+    </div>
+    <div class="profile-row">
+      <span class="profile-label">Email</span>
+      <span class="mono" id="profileModalEmail">—</span>
+    </div>
+    <div class="profile-row">
+      <span class="profile-label">Saved routes</span>
+      <span class="mono" id="profileModalCount">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHAT DOCK ── -->
+<div class="chat-dock" id="chatDock">
+  <button class="chat-toggle" id="chatToggle" aria-expanded="false">
+    <span class="chat-toggle-icon">◆</span>
+    <span>Ask FlowAI</span>
+  </button>
+  <div class="chat-panel" id="chatPanel" hidden>
+    <div class="chat-panel-head">
+      <span>FlowAI Assistant</span>
+      <button class="chat-close" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg bot">Ask me about traffic conditions, or a route you've just analyzed.</div>
+    </div>
+    <form class="chat-input-row" id="chatForm">
+      <input type="text" id="chatInput" placeholder="e.g. is Ellis Bridge congested right now?" autocomplete="off" />
+      <button type="submit" aria-label="Send">→</button>
+    </form>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
