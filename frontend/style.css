@@ -365,6 +365,18 @@ select, input{ font-family: inherit; }
 .save-btn{ margin-top:16px; }
 .save-btn.saved{ color:var(--ok); border-color:var(--ok); }
 
+.trend-note{
+  margin-top:14px; padding:10px 12px; border-radius:var(--radius-sm);
+  background:var(--surface); border:1px solid var(--border);
+  font-size:0.76rem; color:var(--ink-2); line-height:1.5;
+}
+
+.saved-reanalyze{
+  background:none; border:none; color:var(--ink-3); font-size:0.95rem;
+  flex-shrink:0; padding:2px 4px;
+}
+.saved-reanalyze:hover{ color:var(--ink); }
+
 .saved-list{ display:flex; flex-direction:column; gap:0; }
 .saved-row{
   display:flex; align-items:center; justify-content:space-between;
