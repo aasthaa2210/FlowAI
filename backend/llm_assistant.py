@@ -24,7 +24,7 @@ Answer based on this data. Be concise and helpful. Max 3 sentences."""
 Answer traffic related questions helpfully and concisely. Max 3 sentences."""
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="llama-3.1-8b-instant",
         messages=[
             {"role": "system", "content": context},
             {"role": "user", "content": user_question}
