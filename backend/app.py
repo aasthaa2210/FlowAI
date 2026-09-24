@@ -21,7 +21,7 @@ from route_analysis import get_route
 from ai_recommendations import get_recommendations
 from notifications import generate_notifications
 from llm_assistant import ask_traffic_assistant
-from models import db, User, SavedRoute
+from models import db, User, SavedRoute, AnalysisLog
 
 app = Flask(__name__)
 
@@ -189,9 +189,40 @@ def route():
         dest_coords = [dest["lng"], dest["lat"]]
         result = get_route(source_coords, dest_coords)
         result["route"] = f"{source_name} → {dest_name}"
+
+        # Quietly log this analysis for the trend feature — only if logged in,
+        # and this is separate from explicitly "saving" a route.
+        if "user_id" in session:
+            log = AnalysisLog(
+                user_id=session["user_id"],
+                route_name=result["route"],
+                congestion_index=result.get("congestion_index"),
+            )
+            db.session.add(log)
+            db.session.commit()
+
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 502
+
+
+@app.get("/api/routes/trend")
+@login_required
+def route_trend():
+    """
+    Query param: ?route=Satellite%20%E2%86%92%20Maninagar
+    Returns up to the last 5 congestion readings for this exact route name,
+    for the logged-in user, oldest first.
+    """
+    route_name = request.args.get("route", "")
+    logs = (
+        AnalysisLog.query.filter_by(user_id=session["user_id"], route_name=route_name)
+        .order_by(AnalysisLog.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    logs.reverse()  # oldest first, for a left-to-right trend
+    return jsonify({"trend": [l.to_dict() for l in logs]})
 
 
 @app.post("/api/recommendations")
@@ -242,6 +273,11 @@ def chat():
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 502
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 
 if __name__ == "__main__":
