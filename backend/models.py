@@ -26,6 +26,25 @@ class User(db.Model):
         return {"id": self.id, "username": self.username, "email": self.email}
 
 
+class AnalysisLog(db.Model):
+    """Every route analysis a logged-in user runs gets logged here
+    (separate from SavedRoute, which is an explicit bookmark) so we can
+    show a congestion trend for routes checked more than once."""
+    __tablename__ = "analysis_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    route_name = db.Column(db.String(200), nullable=False)
+    congestion_index = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "congestion_index": self.congestion_index,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
 class SavedRoute(db.Model):
     __tablename__ = "saved_routes"
 
@@ -59,3 +78,4 @@ class SavedRoute(db.Model):
             "dest": {"lat": self.dest_lat, "lng": self.dest_lng},
             "created_at": self.created_at.isoformat(),
         }
+
