@@ -3,7 +3,7 @@
    Change this one line once your backend is deployed —
    e.g. "https://flowai-backend.onrender.com/api"
 ═══════════════════════════════════════════════ */
-const API_BASE = "https://flowai-61pj.onrender.com/api";
+const API_BASE = "http://localhost:5000/api";
 
 // Preset Ahmedabad locations (lat/lng) for the route selects.
 // Purely geographic reference data, used to call your backend's
@@ -39,6 +39,7 @@ let lastRouteData = null;
 let lastFrom = null;   // { name, lat, lng } of the last analyzed "from"
 let lastDest = null;   // { name, lat, lng } of the last analyzed "to"
 let currentUser = null;
+let savedRoutesCache = [];
 let leafletMap = null;
 let mapMarkers = [];
 let mapLine = null;
@@ -172,6 +173,7 @@ async function onLogout(){
   lastRouteData = null;
   renderHistory();
   document.getElementById("resultBlock").hidden = true;
+  document.getElementById("trendNote").hidden = true;
   document.getElementById("mapContainer").hidden = true;
   document.getElementById("recGrid").innerHTML = "";
   document.getElementById("notifList").innerHTML = `<div class="empty-state">Analyze a route to generate alerts.</div>`;
@@ -242,18 +244,32 @@ async function checkApiHealth(){
 ═══════════════════════════════════════════════ */
 async function onAnalyze(e){
   e.preventDefault();
-  const errBox = document.getElementById("routeError");
-  errBox.hidden = true;
-
   const fromIdx = +document.getElementById("fromSelect").value;
   const toIdx = +document.getElementById("toSelect").value;
   const from = LOCATIONS[fromIdx];
   const to = LOCATIONS[toIdx];
 
   if(fromIdx === toIdx){
-    showError(errBox, "Pick two different locations.");
+    showError(document.getElementById("routeError"), "Pick two different locations.");
     return;
   }
+  await doAnalyze(from, to);
+}
+
+async function onReanalyzeSaved(id){
+  const saved = savedRoutesCache.find(r => String(r.id) === String(id));
+  if(!saved) return;
+  const [fromName, toName] = saved.route.split(" → ");
+  const from = { name: fromName || "Origin", lat: saved.source.lat, lng: saved.source.lng };
+  const to = { name: toName || "Destination", lat: saved.dest.lat, lng: saved.dest.lng };
+  await doAnalyze(from, to);
+  // scroll the result into view since this was triggered from a panel further down the page
+  document.getElementById("resultBlock").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function doAnalyze(from, to){
+  const errBox = document.getElementById("routeError");
+  errBox.hidden = true;
 
   const btn = document.getElementById("analyzeBtn");
   btn.disabled = true;
@@ -284,11 +300,37 @@ async function onAnalyze(e){
     document.getElementById("saveRouteBtn").textContent = "☆ Save this route";
     document.getElementById("saveRouteBtn").classList.remove("saved");
     refreshNotifications();
+    loadTrend(data.route);
   }catch(err){
     showError(errBox, err.message);
   }finally{
     btn.disabled = false;
     btn.textContent = "Analyze route";
+  }
+}
+
+/* ══════════════════════════════════════════════
+   CONGESTION TREND
+═══════════════════════════════════════════════ */
+async function loadTrend(routeName){
+  const note = document.getElementById("trendNote");
+  if(!currentUser){ note.hidden = true; return; }
+
+  try{
+    const res = await api(`/routes/trend?route=${encodeURIComponent(routeName)}`);
+    const data = await res.json();
+    if(!res.ok) throw new Error();
+
+    const trend = data.trend || [];
+    if(trend.length < 2){
+      note.hidden = true;
+      return;
+    }
+    const readings = trend.map(t => Number(t.congestion_index).toFixed(1)).join(" → ");
+    note.hidden = false;
+    note.innerHTML = `You've checked this route ${trend.length} times recently. Congestion: <span class="mono">${readings}</span>`;
+  }catch(e){
+    note.hidden = true;
   }
 }
 
@@ -455,11 +497,16 @@ async function loadSavedRoutes(){
           <div class="saved-route-name">${escapeHtml(r.route)}</div>
           <div class="saved-route-meta mono">${fmtNum(r.distance_km)} km · ${fmtNum(r.congestion_index)}/10 congestion</div>
         </div>
+        <button class="saved-reanalyze" data-id="${r.id}" title="Re-analyze this route">↻</button>
         <button class="saved-delete" aria-label="Delete" data-id="${r.id}">×</button>
       </div>`).join("");
 
+    savedRoutesCache = routes;
     list.querySelectorAll(".saved-delete").forEach(btn => {
       btn.addEventListener("click", () => onDeleteSavedRoute(btn.dataset.id));
+    });
+    list.querySelectorAll(".saved-reanalyze").forEach(btn => {
+      btn.addEventListener("click", () => onReanalyzeSaved(btn.dataset.id));
     });
   }catch(err){
     list.innerHTML = `<div class="empty-state">Couldn't load saved routes: ${escapeHtml(err.message)}</div>`;
