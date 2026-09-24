@@ -31,7 +31,13 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-secret-change-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///flowai.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") == "production"
+# Browsers silently reject a SameSite=None cookie unless Secure is also
+# true — this was defaulting to False on Render (since FLASK_ENV wasn't
+# set there), which meant the login session cookie never actually got
+# stored, so every request after login looked "logged out."
+# Render always serves https, so default to secure=True; only disable it
+# for explicit local http development.
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") != "development"
 
 db.init_app(app)
 with app.app_context():
@@ -273,11 +279,6 @@ def chat():
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 502
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
 
 
 if __name__ == "__main__":
