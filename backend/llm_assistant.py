@@ -8,7 +8,8 @@ client = Groq(api_key=GROQ_API_KEY, timeout=30.0)
 def ask_traffic_assistant(user_question, route_data=None):
     
     if route_data:
-        context = f"""You are FlowAI, a smart traffic assistant for Ahmedabad city.
+        context = f"""You are FlowAI, a smart traffic assistant embedded in a
+route-intelligence app for Ahmedabad city.
 
 Current route data:
 - Distance: {route_data['distance_km']} km
@@ -17,11 +18,18 @@ Current route data:
 - Traffic Level: {route_data['traffic_level']}
 - Advice: {route_data['advice']}
 
-Answer based on this data. Be concise and helpful. Max 3 sentences."""
+Use this data when the question is about traffic or this route. If the
+question is about something else entirely, still answer it helpfully and
+accurately — don't refuse or deflect just because it's off-topic. Be
+concise: max 3-4 sentences unless the question genuinely needs more."""
 
     else:
-        context = """You are FlowAI, a smart traffic assistant for Ahmedabad city.
-Answer traffic related questions helpfully and concisely. Max 3 sentences."""
+        context = """You are FlowAI, a smart traffic assistant embedded in a
+route-intelligence app for Ahmedabad city. Answer traffic-related questions
+helpfully using general knowledge of Ahmedabad where relevant. If asked
+something unrelated to traffic, still answer it helpfully and accurately —
+don't refuse or deflect just because it's off-topic. Be concise: max 3-4
+sentences unless the question genuinely needs more."""
 
     response = client.chat.completions.create(
         model="openai/gpt-oss-20b",
