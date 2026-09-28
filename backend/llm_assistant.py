@@ -9,7 +9,7 @@ def ask_traffic_assistant(user_question, route_data=None):
     
     if route_data:
         context = f"""You are FlowAI, a smart traffic assistant embedded in a
-route-intelligence app for Ahmedabad city.
+route-intelligence app for Ahmedabad City.
 
 Current route data:
 - Distance: {route_data['distance_km']} km
